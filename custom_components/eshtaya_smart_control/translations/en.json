@@ -4,59 +4,12 @@
     "step": {
       "user": {
         "title": "Eshtaya Smart Control",
-        "description": "Install the unified Eshtaya Smart Control platform. Tuya Cloud credentials are optional and can also be configured later from the Tuya Entity Control tool.",
-        "data": {
-          "tuya_region": "Tuya region",
-          "tuya_endpoint": "Custom Tuya endpoint",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        },
-        "data_description": {
-          "tuya_region": "Choose the Tuya Cloud data center used by this project.",
-          "tuya_endpoint": "Used only when Custom endpoint is selected.",
-          "tuya_client_id": "Access ID / Client ID from the Tuya Cloud project.",
-          "tuya_client_secret": "Access Secret / Client Secret. Stored in the Home Assistant config entry.",
-          "tuya_uid": "Tuya user UID whose devices should be managed."
-        }
-      },
-      "init": {
-        "title": "Eshtaya Smart Control options",
-        "description": "Update the optional Tuya Cloud account. Leave Client Secret blank to keep the current secret.",
-        "data": {
-          "tuya_region": "Tuya region",
-          "tuya_endpoint": "Custom Tuya endpoint",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        }
-      },
-      "reconfigure": {
-        "title": "Reconfigure Eshtaya Smart Control",
-        "description": "Update the optional Tuya Cloud connection. The current Client Secret is kept when the password field is left blank.",
-        "data": {
-          "tuya_region": "Tuya data center",
-          "tuya_endpoint": "Custom Tuya endpoint",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        },
-        "data_description": {
-          "tuya_region": "Choose the Tuya Cloud data center used by this project.",
-          "tuya_endpoint": "Used only when Custom endpoint is selected.",
-          "tuya_client_id": "Access ID / Client ID from the Tuya Cloud project.",
-          "tuya_client_secret": "Access Secret / Client Secret. Stored in the Home Assistant config entry.",
-          "tuya_uid": "Tuya user UID whose devices should be managed."
-        }
+        "description": "Install Eshtaya Smart Control. No Tuya Cloud information is required here. Open Tuya Control from the dashboard later if you want to activate the optional Tuya module.",
+        "data": {}
       }
     },
     "abort": {
-      "already_configured": "Eshtaya Smart Control is already configured.",
-      "reconfigure_successful": "Eshtaya Smart Control was reconfigured successfully."
-    },
-    "error": {
-      "incomplete_tuya": "To configure Tuya, Client ID, Client Secret and UID are all required. Leave all three blank to skip Tuya setup.",
-      "cannot_connect": "Could not validate the Tuya Cloud account. Check the data center, Client ID, Client Secret, UID and project permissions."
+      "already_configured": "Eshtaya Smart Control is already configured."
     }
   },
   "entity": {

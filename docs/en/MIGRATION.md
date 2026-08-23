@@ -1,87 +1,34 @@
-# Automatic migration from legacy Eshtaya integrations
+# Automatic Legacy Migration
 
-Starting with **Eshtaya Smart Control 1.1.0**, the unified platform checks for previous standalone integrations during first setup. Starting with **1.2.0**, the complete cutover is visible inside the new **Migration Center**.
+## Supported legacy integrations
+- Eshtaya Entity Manager (`eshtaya_entity_manager`).
+- Eshtaya Multi-Way Control (`eshtaya_multiway`).
 
-Supported legacy integrations:
+## Transaction model
+Migration is designed as a guarded cutover, not a blind copy. It detects legacy config entries/storage, creates an independent backup, copies only into empty unified destinations, disables legacy engines before starting the new runtime, validates migrated counts and removes legacy config entries only after validation succeeds.
 
-- `Eshtaya Entity Manager` — domain: `eshtaya_entity_manager`
-- `Eshtaya Multi-Way Control` — domain: `eshtaya_multiway`
+## Migration phases
+1. Detect legacy entries/storage.
+2. Backup legacy configuration and entry metadata.
+3. Copy Entity rules, Multi-Way and Smart Group data where needed.
+4. Disable legacy entries to prevent two control engines acting on the same hardware.
+5. Start the unified runtime.
+6. Compare expected and actual rule/group counts.
+7. Remove verified legacy config entries.
+8. Reconcile Smart Group hidden-member ownership.
+9. Attempt HACS cleanup through HACS APIs when available.
 
-## Automatic sequence
+## Backup location
+The internal migration backup uses `eshtaya_smart_control.migration_backup`. The report exposes the backup store name but not its raw payload.
 
-1. Detect legacy config entries and storage.
-2. Create an independent migration backup before deleting anything.
-3. Copy Entity Control, Multi-Way and Smart Group data only when the new destination is empty.
-4. Temporarily disable legacy config entries so two control engines cannot run over the same devices.
-5. Start the unified Entity Control, Multi-Way and Smart Group modules.
-6. Validate migrated rule/group counts against the legacy data.
-7. If validation fails, re-enable the legacy config entries automatically and keep the backup.
-8. If validation succeeds, remove the legacy config entries through Home Assistant.
-9. Reconcile Smart Group hidden-member ownership after the old Multi-Way entry is removed.
-10. Replace old `eshtaya_multiway.*` service handlers with compatibility aliases that forward to the new engine, preserving existing automations and scripts.
-11. Attempt to uninstall/unregister old repositories through HACS itself. The integration never deletes `custom_components` folders directly.
+## Rollback
+If startup or validation fails before final cleanup, entries disabled by the migration are re-enabled. Migration state records the reason and restored-entry count. A Home Assistant full backup remains the strongest disaster-recovery fallback and is still recommended.
 
-## Migration Center
+## Compatibility aliases
+After legacy Multi-Way is retired, compatibility service aliases preserve common `eshtaya_multiway.*` calls by forwarding them to the new engine so existing scripts/automations have a transition path.
 
-**System Center → Migration Center** presents the transition as a visual workflow:
+## Existing v1.x unified installations
+Updating Eshtaya Smart Control does not rerun a completed migration destructively. Existing unified storage and config entry are reused.
 
-`Detect → Backup → Copy → Stop Legacy → Start New Runtime → Validate → Remove Legacy → Reconcile → HACS Cleanup`
-
-Each stage exposes a safe status, timestamps when available, a short explanation and sanitized operational details.
-
-Supported states are Pending, Running, Completed, Failed, Rolled Back and Skipped.
-
-## Before / after validation
-
-Migration Center compares:
-
-- Entity / Alexa rule count;
-- Multi-Way group count;
-- Smart Group count.
-
-The migration is not finalized until the transferred configuration passes validation.
-
-## Migration backup
-
-The independent backup is stored under:
-
-`eshtaya_smart_control.migration_backup`
-
-It contains the legacy integration data and config-entry metadata captured before cutover. Raw backup contents are never exposed through the UI or migration report.
-
-## Failure behavior
-
-If copying, startup or validation fails before final cleanup:
-
-- legacy configuration is not deleted;
-- entries disabled by the migration are re-enabled;
-- the failure is recorded in Migration Center;
-- affected steps are marked Failed or Rolled Back;
-- the independent backup remains available for recovery and diagnosis.
-
-## Migration Report
-
-Migration Center can download a JSON support report containing:
-
-- Eshtaya Smart Control version;
-- migration phase and timeline;
-- before/after counts;
-- validation result;
-- rollback state;
-- HACS cleanup result;
-- recorded errors.
-
-For security, the report intentionally excludes:
-
-- Tuya Client Secret;
-- Tuya credentials;
-- raw legacy storage payloads;
-- raw migration-backup contents.
-
-## Compatibility with v1.1 migration records
-
-If migration already completed on **v1.1.0** before upgrading to v1.2.0, Migration Center hydrates the previous record into a completed timeline rather than incorrectly showing pending steps.
-
-## HACS cleanup
-
-Config-entry removal is handled by Home Assistant after validation succeeds. Package removal is requested only through the HACS repository API when available. This avoids leaving HACS metadata out of sync with manually deleted folders.
+## Do not manually race the migration
+Avoid deleting old config entries or folders while the migration is running. Wait for Migration Center to complete or roll back, then resolve any recorded error.

@@ -4,59 +4,12 @@
     "step": {
       "user": {
         "title": "Eshtaya Smart Control",
-        "description": "تثبيت منصة Eshtaya Smart Control الشاملة. بيانات Tuya Cloud اختيارية ويمكن إعدادها لاحقاً من أداة Tuya Entity Control.",
-        "data": {
-          "tuya_region": "منطقة Tuya",
-          "tuya_endpoint": "رابط Tuya المخصص",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        },
-        "data_description": {
-          "tuya_region": "اختر مركز بيانات Tuya Cloud المستخدم لهذا المشروع.",
-          "tuya_endpoint": "يستخدم فقط عند اختيار رابط مخصص.",
-          "tuya_client_id": "Access ID / Client ID من مشروع Tuya Cloud.",
-          "tuya_client_secret": "Access Secret / Client Secret ويتم حفظه داخل Config Entry في Home Assistant.",
-          "tuya_uid": "UID لمستخدم Tuya الذي تريد إدارة أجهزته."
-        }
-      },
-      "init": {
-        "title": "إعدادات Eshtaya Smart Control",
-        "description": "تعديل حساب Tuya Cloud الاختياري. اترك Client Secret فارغاً للاحتفاظ بالقيمة الحالية.",
-        "data": {
-          "tuya_region": "منطقة Tuya",
-          "tuya_endpoint": "رابط Tuya المخصص",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        }
-      },
-      "reconfigure": {
-        "title": "إعادة إعداد Eshtaya Smart Control",
-        "description": "تعديل اتصال Tuya Cloud الاختياري. إذا تركت Client Secret فارغاً يتم الاحتفاظ بالقيمة الحالية.",
-        "data": {
-          "tuya_region": "مركز بيانات Tuya",
-          "tuya_endpoint": "رابط Tuya المخصص",
-          "tuya_client_id": "Tuya Client ID",
-          "tuya_client_secret": "Tuya Client Secret",
-          "tuya_uid": "Tuya UID"
-        },
-        "data_description": {
-          "tuya_region": "اختر مركز بيانات Tuya Cloud المستخدم لهذا المشروع.",
-          "tuya_endpoint": "يستخدم فقط عند اختيار رابط مخصص.",
-          "tuya_client_id": "Access ID / Client ID من مشروع Tuya Cloud.",
-          "tuya_client_secret": "Access Secret / Client Secret ويتم حفظه داخل Config Entry في Home Assistant.",
-          "tuya_uid": "UID لمستخدم Tuya الذي تريد إدارة أجهزته."
-        }
+        "description": "تثبيت منصة Eshtaya Smart Control فقط. لن يطلب هذا الإعداد أي معلومات لحساب تويا. إذا أردت تفعيل إدارة تويا لاحقاً، افتح قسم «إدارة تويا» من لوحة التحكم وأدخل البيانات هناك لمرة واحدة.",
+        "data": {}
       }
     },
     "abort": {
-      "already_configured": "تم إعداد Eshtaya Smart Control مسبقاً.",
-      "reconfigure_successful": "تم تحديث إعدادات Eshtaya Smart Control بنجاح."
-    },
-    "error": {
-      "incomplete_tuya": "لإعداد Tuya يجب إدخال Client ID وClient Secret وUID جميعها. اتركها كلها فارغة لتخطي إعداد Tuya.",
-      "cannot_connect": "تعذر التحقق من حساب Tuya Cloud. تأكد من مركز البيانات وClient ID وClient Secret وUID وصلاحيات المشروع."
+      "already_configured": "تم إعداد Eshtaya Smart Control مسبقاً."
     }
   },
   "entity": {
@@ -65,7 +18,7 @@
         "name": "التحكم"
       },
       "smart_group_control": {
-        "name": "تحكم الجروب"
+        "name": "تحكم المجموعة"
       }
     },
     "switch": {
@@ -76,10 +29,10 @@
         "name": "المزامنة"
       },
       "smart_group_control": {
-        "name": "تحكم الجروب"
+        "name": "تحكم المجموعة"
       },
       "smart_group_enabled": {
-        "name": "تفعيل الجروب"
+        "name": "تفعيل المجموعة"
       }
     },
     "sensor": {
@@ -93,10 +46,10 @@
         "name": "آخر زمن استجابة"
       },
       "smart_group_health": {
-        "name": "حالة الجروب"
+        "name": "صحة المجموعة"
       },
       "smart_group_quality": {
-        "name": "جودة الجروب"
+        "name": "درجة الجودة"
       },
       "smart_group_last_source": {
         "name": "آخر مصدر"
@@ -110,7 +63,7 @@
         "name": "متزامن"
       },
       "smart_group_healthy": {
-        "name": "الجروب سليم"
+        "name": "المجموعة سليمة"
       }
     },
     "button": {
@@ -136,7 +89,7 @@
       "description": "الخرج {entity} في المجموعة {group} فشل عدة مرات في تأكيد الأوامر. افحص اتصال الجهاز ثم استخدم مزامنة الآن بعد عودته للعمل."
     },
     "smart_group_fault": {
-      "title": "مشكلة في Smart Group",
+      "title": "مشكلة في المجموعة الذكية",
       "description": "الجروب {group} لديه مشكلة بالمزامنة: {error}"
     }
   },
