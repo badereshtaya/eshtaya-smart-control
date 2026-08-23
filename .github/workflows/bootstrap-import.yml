@@ -97,6 +97,7 @@ jobs:
             source_payload.part_007 \
             | base64 --decode > "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz"
           tar -xzf "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz" -C .
+          rm -f .github/workflows/release.yml .github/workflows/validate.yml
           rm -f source_payload.part_* overlay2.part_* source_payload.ready
           find . -type d -name '__pycache__' -prune -exec rm -rf {} +
           find . -type f -name '*.pyc' -delete
@@ -124,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/bootstrap-import.yml manual-trigger
+          rm -f manual-trigger
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
