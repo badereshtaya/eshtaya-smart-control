@@ -5,12 +5,13 @@ from typing import Final
 
 DOMAIN: Final = "eshtaya_smart_control"
 NAME: Final = "Eshtaya Smart Control"
-VERSION: Final = "1.0.0"
+VERSION: Final = "1.1.0"
 MANUFACTURER: Final = "Eshtaya Smart"
 
 DATA_ENTRY: Final = "entry"
 DATA_ENTITY_MANAGER: Final = "entity_manager"
 DATA_TUYA_MANAGER: Final = "tuya_manager"
+DATA_MIGRATION: Final = "migration"
 
 PANEL_URL: Final = "eshtaya-smart-control"
 PANEL_ELEMENT: Final = "eshtaya-smart-control-panel"
