@@ -8,6 +8,12 @@ on:
     paths:
       - '.github/workflows/v2-bootstrap.yml'
       - '.v2-bootstrap/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/v2-bootstrap.yml'
+      - '.v2-bootstrap/**'
 
 permissions:
   contents: write
@@ -87,7 +93,6 @@ jobs:
           brand.mkdir(parents=True, exist_ok=True)
           assets.mkdir(parents=True, exist_ok=True)
 
-          # Preserve the supplied artwork as the canonical dashboard logo.
           src.save(brand / 'source_logo.png', 'PNG', optimize=True)
           src.save(assets / 'logo.png', 'PNG', optimize=True)
 
@@ -126,6 +131,7 @@ jobs:
           PY
 
       - name: Commit Eshtaya Smart Control v2.0.0
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         run: |
           set -euo pipefail
