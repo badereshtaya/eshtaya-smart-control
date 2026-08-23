@@ -1,0 +1,20 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build HACS archive
+        run: |
+          cd custom_components/eshtaya_smart_control
+          zip -r ../../eshtaya-smart-control.zip . -x '**/__pycache__/**' '*.pyc'
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: eshtaya-smart-control.zip
+          generate_release_notes: true
