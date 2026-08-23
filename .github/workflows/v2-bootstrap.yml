@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  import-v2:
+  recover-v2:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,40 +24,20 @@ jobs:
           ref: v2.0.0-major-update
           fetch-depth: 0
 
-      - name: Rebuild v2 text overlay
+      - name: Recover complete files from partial v2 overlay
         shell: bash
         run: |
-          set -euo pipefail
-          cat .v2-bootstrap/text_* | tr -d '\r\n ' | base64 --decode > /tmp/v2-text-overlay.tar.gz
-          echo 'Overlay contents:'
-          tar -tzf /tmp/v2-text-overlay.tar.gz | sed -n '1,160p'
-          tar -xzf /tmp/v2-text-overlay.tar.gz -C .
+          set -u
+          mkdir -p /tmp/v2-recovered
+          cat .v2-bootstrap/text_* | tr -d '\r\n ' | base64 --decode > /tmp/v2-text-overlay.tar.gz || true
+          tar -xzf /tmp/v2-text-overlay.tar.gz -C /tmp/v2-recovered || true
+          echo 'Recovered files:'
+          find /tmp/v2-recovered -type f -printf '%P %s bytes\n' | sort
+          tar -czf /tmp/v2-recovered-files.tar.gz -C /tmp/v2-recovered .
 
-      - name: Validate imported text source
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m compileall -q custom_components/eshtaya_smart_control
-          find custom_components/eshtaya_smart_control/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          for path in Path('custom_components/eshtaya_smart_control').rglob('*.json'):
-              json.loads(path.read_text(encoding='utf-8'))
-          print('JSON validation passed')
-          PY
-
-      - name: Commit imported v2 source
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- ':!.github/workflows/*' ':!.v2-bootstrap/*'
-          if git diff --cached --quiet; then
-            echo 'No source changes to commit.'
-            exit 0
-          fi
-          git commit -m 'feat: import Eshtaya Smart Control v2.0.0 source'
-          git push origin HEAD:v2.0.0-major-update
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v2-recovered-source
+          path: /tmp/v2-recovered-files.tar.gz
+          if-no-files-found: error
+          retention-days: 2
