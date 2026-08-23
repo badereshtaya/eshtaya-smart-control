@@ -1,10 +1,10 @@
 {
   "domain": "eshtaya_smart_control",
   "name": "Eshtaya Smart Control",
-  "version": "1.0.0",
+  "codeowners": [
+    "@badereshtaya"
+  ],
   "config_flow": true,
-  "single_config_entry": true,
-  "integration_type": "service",
   "dependencies": [
     "frontend",
     "group",
@@ -13,9 +13,9 @@
     "websocket_api"
   ],
   "documentation": "https://github.com/badereshtaya/hacs-eshtaya-smart-control",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/badereshtaya/hacs-eshtaya-smart-control/issues",
-  "codeowners": [
-    "@badereshtaya"
-  ],
-  "iot_class": "cloud_polling"
+  "single_config_entry": true,
+  "version": "1.0.0"
 }
