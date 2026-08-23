@@ -19,7 +19,7 @@ from .entity_control.manager_unified import UnifiedEntityManager
 from .entity_control.websocket_v12 import async_register_websocket_commands as async_register_entity_ws
 from .legacy_cleanup import async_cleanup_legacy_hacs
 from .legacy_compat import async_register_legacy_service_aliases
-from .migration import LegacyMigrationCoordinator
+from .migration_center import MigrationCenterCoordinator
 from .multiway import async_remove_entry as async_remove_multiway_entry
 from .multiway import async_setup as async_setup_multiway
 from .multiway import async_setup_entry as async_setup_multiway_entry
@@ -34,11 +34,19 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
-def _schedule_legacy_hacs_cleanup(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def _schedule_legacy_hacs_cleanup(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    migration: MigrationCenterCoordinator,
+) -> None:
     """Run HACS cleanup now or once Home Assistant has fully started."""
 
     async def _cleanup() -> None:
         results = await async_cleanup_legacy_hacs(hass)
+        try:
+            await migration.async_mark_hacs_cleanup(results)
+        except Exception:  # noqa: BLE001 - cleanup reporting must not break HA
+            _LOGGER.exception("Could not save legacy HACS cleanup status")
         if any(value.startswith("failed:") for value in results.values()):
             _LOGGER.warning("Legacy HACS cleanup was only partially successful: %s", results)
 
@@ -67,7 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = hass.data.setdefault(DOMAIN, {})
     data[DATA_ENTRY] = entry
 
-    migration = LegacyMigrationCoordinator(hass)
+    migration = MigrationCenterCoordinator(hass)
     data[DATA_MIGRATION] = migration
     migration_state = await migration.async_prepare()
     migration_active = bool(
@@ -90,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         if migration_active:
             runtime = data.get(DATA_RUNTIME) or {}
+            await migration.async_mark_runtime_started(runtime)
             validation = await migration.async_validate(runtime)
             if not validation.get("ok"):
                 raise RuntimeError(
@@ -104,7 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             async_register_legacy_service_aliases(hass)
 
         if migration_active:
-            _schedule_legacy_hacs_cleanup(hass, entry)
+            _schedule_legacy_hacs_cleanup(hass, entry, migration)
 
         async def _entity_registry_changed(event) -> None:
             try:
