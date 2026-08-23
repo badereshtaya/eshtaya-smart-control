@@ -14,6 +14,7 @@ from .multiway.const import DATA_RUNTIME
 @callback
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_overview)
+    websocket_api.async_register_command(hass, websocket_migration_report)
 
 
 @websocket_api.require_admin
@@ -58,3 +59,29 @@ async def websocket_overview(hass: HomeAssistant, connection, msg: dict[str, Any
             "migration": migration_status,
         },
     )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/migration_report"})
+@websocket_api.async_response
+async def websocket_migration_report(
+    hass: HomeAssistant, connection, msg: dict[str, Any]
+) -> None:
+    """Return a credential-free migration report for download/support."""
+    migration = hass.data.get(DOMAIN, {}).get(DATA_MIGRATION)
+    if migration is None:
+        connection.send_result(
+            msg["id"],
+            {
+                "schema": 1,
+                "integration": {"domain": DOMAIN, "version": VERSION},
+                "migration": {
+                    "phase": "not_started",
+                    "completed": False,
+                    "legacy_found": False,
+                },
+                "notes": ["Migration coordinator is not loaded."],
+            },
+        )
+        return
+    connection.send_result(msg["id"], await migration.async_report())
