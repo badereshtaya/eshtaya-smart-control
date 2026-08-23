@@ -35,14 +35,8 @@ jobs:
           cp -a "$RUNNER_TEMP/multiway/custom_components/eshtaya_multiway/brand" "$TARGET/brand"
           mkdir -p "$TARGET/frontend/multiway"
           cp "$RUNNER_TEMP/multiway/custom_components/eshtaya_multiway/frontend/panel.js" "$TARGET/frontend/multiway/panel.js"
-          rm -rf \
-            "$TARGET/multiway/brand" \
-            "$TARGET/multiway/frontend" \
-            "$TARGET/multiway/translations"
-          rm -f \
-            "$TARGET/multiway/config_flow.py" \
-            "$TARGET/multiway/frontend.py" \
-            "$TARGET/multiway/manifest.json"
+          rm -rf "$TARGET/multiway/brand" "$TARGET/multiway/frontend" "$TARGET/multiway/translations"
+          rm -f "$TARGET/multiway/config_flow.py" "$TARGET/multiway/frontend.py" "$TARGET/multiway/manifest.json"
 
           mkdir -p "$TARGET/entity_control" "$TARGET/frontend/entity"
           cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/manager.py" "$TARGET/entity_control/manager.py"
@@ -50,6 +44,39 @@ jobs:
           cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/manager_v12.py" "$TARGET/entity_control/manager_v12.py"
           cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/frontend/eshtaya-entity-manager-panel.js" "$TARGET/frontend/entity/eshtaya-entity-manager-panel.js"
           cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/frontend/eshtaya-entity-manager-panel-loader.js" "$TARGET/frontend/entity/eshtaya-entity-manager-panel-loader.js"
+
+      - name: Adapt inherited frontends and WebSocket namespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("custom_components/eshtaya_smart_control")
+
+          ws = root / "multiway/websocket.py"
+          text = ws.read_text(encoding="utf-8")
+          text = re.sub(r'f"\{DOMAIN\}/(?!multiway/)', 'f"{DOMAIN}/multiway/', text)
+          ws.write_text(text, encoding="utf-8")
+
+          panel = root / "frontend/multiway/panel.js"
+          text = panel.read_text(encoding="utf-8")
+          text = text.replace('const DOMAIN = "eshtaya_multiway";', 'const DOMAIN = "eshtaya_smart_control/multiway";')
+          text = text.replace('(this._hass?.language || this._hass?.locale?.language || "en")', '(window.__ESHTAYA_SMART_LANG__ || this._hass?.language || this._hass?.locale?.language || "en")')
+          panel.write_text(text, encoding="utf-8")
+
+          entity_panel = root / "frontend/entity/eshtaya-entity-manager-panel.js"
+          text = entity_panel.read_text(encoding="utf-8")
+          text = text.replace('const DOMAIN = "eshtaya_entity_manager";', 'const DOMAIN = "eshtaya_smart_control/entity";')
+          text = text.replace('const language = this._hass?.locale?.language || this._hass?.language || "en";', 'const language = window.__ESHTAYA_SMART_LANG__ || this._hass?.locale?.language || this._hass?.language || "en";')
+          entity_panel.write_text(text, encoding="utf-8")
+
+          entity_loader = root / "frontend/entity/eshtaya-entity-manager-panel-loader.js"
+          text = entity_loader.read_text(encoding="utf-8")
+          text = text.replace('const DOMAIN = "eshtaya_entity_manager";', 'const DOMAIN = "eshtaya_smart_control/entity";')
+          entity_loader.write_text(text, encoding="utf-8")
+          PY
 
       - name: Apply Eshtaya Smart Control overlay
         shell: bash
