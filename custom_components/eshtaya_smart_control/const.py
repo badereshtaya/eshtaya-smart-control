@@ -5,7 +5,7 @@ from typing import Final
 
 DOMAIN: Final = "eshtaya_smart_control"
 NAME: Final = "Eshtaya Smart Control"
-VERSION: Final = "1.1.0"
+VERSION: Final = "1.2.0"
 MANUFACTURER: Final = "Eshtaya Smart"
 
 DATA_ENTRY: Final = "entry"
