@@ -94,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Automatic legacy migration rollback failed")
         try:
-            await async_remove_panel(hass)
+            async_remove_panel(hass)
         except Exception:  # noqa: BLE001
             pass
         _LOGGER.exception("Eshtaya Smart Control setup failed")
@@ -108,7 +108,7 @@ async def _entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    await async_remove_panel(hass)
+    async_remove_panel(hass)
     ok = await async_unload_multiway_entry(hass, entry)
     if ok:
         hass.data.pop(DOMAIN, None)
