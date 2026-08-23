@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — Migration Center & operational visibility
+
+- Added a full **Migration Center** inside System Center with a visual nine-step migration timeline.
+- Added Before/After counters for Entity/Alexa rules, Multi-Way groups and Smart Groups.
+- Added persistent migration-step state, timestamps, messages and sanitized details for support diagnostics.
+- Added rollback readiness/status and migration-backup visibility without exposing raw backup contents.
+- Added HACS cleanup status reporting for both legacy repositories.
+- Added a credential-free `migration_report` WebSocket endpoint and one-click JSON report download from the UI.
+- Migration reports intentionally exclude Tuya credentials, Client Secret values and raw legacy storage payloads.
+- Added compatibility hydration so systems that already completed the v1.1 migration receive a correct completed v1.2 timeline instead of pending steps.
+- Rebuilt the unified Control Hub with a more responsive, high-density professional UI and migration banner.
+- Updated bilingual in-app migration documentation.
+
 ## 1.1.0 — Automatic legacy migration
 
 - Added automatic detection of `eshtaya_entity_manager` and `eshtaya_multiway` during first setup.
