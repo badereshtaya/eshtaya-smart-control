@@ -1,0 +1,97 @@
+{
+  "entity": {
+    "light": {
+      "group_control": {
+        "default": "mdi:light-switch"
+      },
+      "smart_group_control": {
+        "default": "mdi:lightbulb-group"
+      }
+    },
+    "switch": {
+      "group_control": {
+        "default": "mdi:electric-switch"
+      },
+      "group_enabled": {
+        "default": "mdi:link-variant"
+      },
+      "smart_group_control": {
+        "default": "mdi:toggle-switch"
+      },
+      "smart_group_enabled": {
+        "default": "mdi:shield-check"
+      }
+    },
+    "sensor": {
+      "health": {
+        "default": "mdi:heart-pulse"
+      },
+      "last_source": {
+        "default": "mdi:gesture-tap-button"
+      },
+      "last_latency": {
+        "default": "mdi:timer-outline"
+      },
+      "smart_group_health": {
+        "default": "mdi:heart-pulse"
+      },
+      "smart_group_quality": {
+        "default": "mdi:signal"
+      },
+      "smart_group_last_source": {
+        "default": "mdi:source-branch"
+      },
+      "smart_group_latency": {
+        "default": "mdi:timer-outline"
+      }
+    },
+    "binary_sensor": {
+      "in_sync": {
+        "default": "mdi:link-variant"
+      },
+      "smart_group_healthy": {
+        "default": "mdi:shield-check"
+      }
+    },
+    "button": {
+      "sync_now": {
+        "default": "mdi:sync"
+      },
+      "smart_group_sync": {
+        "default": "mdi:sync"
+      }
+    }
+  },
+  "services": {
+    "sync_group": {
+      "service": "mdi:sync"
+    },
+    "sync_all": {
+      "service": "mdi:sync-circle"
+    },
+    "enable_group": {
+      "service": "mdi:link-variant"
+    },
+    "disable_group": {
+      "service": "mdi:link-variant-off"
+    },
+    "set_group_state": {
+      "service": "mdi:electric-switch"
+    },
+    "test_group": {
+      "service": "mdi:test-tube"
+    },
+    "set_smart_group_state": {
+      "service": "mdi:power"
+    },
+    "sync_smart_group": {
+      "service": "mdi:sync"
+    },
+    "test_smart_group": {
+      "service": "mdi:test-tube"
+    },
+    "run_smart_group": {
+      "service": "mdi:play-circle-outline"
+    }
+  }
+}
