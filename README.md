@@ -5,11 +5,11 @@
 <h1 align="center">Eshtaya Smart Control</h1>
 
 <p align="center">
-  <strong>A unified professional control and commissioning platform for Home Assistant.</strong>
+  <strong>A unified professional control, commissioning and administration platform for Home Assistant.</strong>
 </p>
 
 <p align="center">
-  Entity & Alexa management · Tuya Cloud administration · Multi-Way switching · Smart Groups · Commissioning · Diagnostics
+  Entity & Alexa management · Tuya Cloud administration · Multi-Way switching · Smart Groups · Commissioning · Diagnostics · Automatic Migration
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/UI-Arabic%20%7C%20English-7C3AED" alt="Arabic and English UI">
 </p>
 
-> **Current unified release:** `1.0.0`  
+> **Current unified release:** `1.2.0`  
 > **Integration domain:** `eshtaya_smart_control`  
 > **Repository:** `badereshtaya/hacs-eshtaya-smart-control`  
 > **Interface:** Home Assistant sidebar Control Hub  
@@ -38,11 +38,12 @@
   - [Multi-Way & Smart Groups](#3-multi-way--smart-groups)
   - [Documentation Center](#4-documentation-center)
   - [System Center](#5-system-center)
+  - [Migration Center](#6-migration-center)
 - [Installation with HACS](#installation-with-hacs)
 - [First setup](#first-setup)
+- [Automatic migration](#automatic-migration)
 - [Tuya Cloud setup](#tuya-cloud-setup)
 - [Alexa hidden entities files](#alexa-hidden-entities-files)
-- [Migration from previous Eshtaya integrations](#migration-from-previous-eshtaya-integrations)
 - [Architecture](#architecture)
 - [Security](#security)
 - [Troubleshooting](#troubleshooting)
@@ -56,60 +57,81 @@
 
 # What is Eshtaya Smart Control?
 
-**Eshtaya Smart Control** is a modular Home Assistant integration designed to become the central administration toolbox for Eshtaya Smart installations.
+**Eshtaya Smart Control** is a modular Home Assistant integration intended to become the central administration toolbox for Eshtaya Smart installations.
 
-Instead of installing separate management pages and separate Eshtaya integrations for each job, the platform provides one integration, one sidebar entry, one configuration entry and one expandable Control Hub.
+Instead of installing a separate custom integration or external PHP dashboard for every installation task, Eshtaya Smart Control provides:
 
-The first unified release combines three major systems:
+- one HACS repository;
+- one Home Assistant config entry;
+- one sidebar Control Hub;
+- one expandable backend domain;
+- isolated internal modules for different installer workflows;
+- Arabic / English / Auto interface language;
+- built-in documentation and migration visibility.
+
+The platform currently combines three major control systems plus administration and migration tooling:
 
 | Module | Main purpose |
 |---|---|
 | **HomeAssistant Entity Control** | Manage Home Assistant display names and Alexa exposure rules at scale |
 | **Tuya Entity Control** | Manage Tuya Cloud devices, main names and supported property custom names from inside Home Assistant |
 | **Multi-Way & Smart Groups** | Professional software Multi-Way switching, Smart Groups, Action Groups, commissioning and diagnostics |
-
-The platform also includes a **Documentation Center** and **System Center** so that configuration, operating guidance, module status and migration information stay in the same interface.
+| **Documentation Center** | Bilingual in-app operating guidance |
+| **System Center** | Platform health, module state, Alexa-file health and migration state |
+| **Migration Center** | Safe automatic migration from the previous standalone Eshtaya integrations |
 
 ## Design goals
 
-Eshtaya Smart Control is built around a few principles:
+The project is built around the following principles:
 
 - **One platform, many tools.** New Eshtaya Smart tools can be added as modules without creating another sidebar integration.
-- **Native Home Assistant administration.** No external PHP dashboard and no Home Assistant long-lived access token are required for the included tools.
-- **Professional installer workflow.** Large installations need search, bulk operations, filtering, health information and predictable migration behavior.
-- **Safe configuration.** Destructive operations should be explicit, backup-aware and observable.
-- **Bilingual operation.** The interface supports Arabic and English, with an Auto mode that follows Home Assistant language.
-- **Modular backend.** Each tool has its own manager/API namespace so future modules do not collide with existing engines.
+- **Native Home Assistant administration.** No external PHP dashboard is required for the included management workflows.
+- **Professional installer workflow.** Search, batch actions, health information, backups and migration visibility are first-class features.
+- **Safe configuration.** Destructive operations are backup-aware and validated before cleanup.
+- **Bilingual operation.** Arabic, English and Auto modes are available from the unified shell.
+- **Modular backend.** Entity Control, Tuya, Multi-Way and migration logic remain isolated internally.
+- **Migration without duplicated engines.** Legacy Multi-Way is stopped before the unified runtime takes control.
+- **Credential isolation.** Tuya Client Secret and access tokens stay in the backend.
 
 ---
 
 # Control Hub
 
-Installing the integration adds a single sidebar panel:
+Installing Eshtaya Smart Control adds one Home Assistant sidebar panel:
 
 **Eshtaya Smart Control**
 
-The home screen is a Control Hub rather than a long configuration page. Each major tool is represented by its own card and can be opened independently.
+The sidebar opens a Control Hub instead of a long configuration form. The home page presents the available tools as separate operational cards.
 
-The initial Hub contains:
+The v1.2 Control Hub includes:
 
 1. **HomeAssistant Entity Control**
 2. **Tuya Entity Control**
 3. **Multi-Way & Smart Groups**
 4. **Documentation Center**
 5. **System Center**
+6. **Migration Center** inside System Center
 
-A persistent navigation bar lets you move between tools without leaving the Eshtaya Smart Control panel.
+The header includes:
+
+- current Eshtaya Smart Control version;
+- Arabic / English / Auto language selector;
+- refresh action;
+- unified navigation.
+
+The home dashboard also shows compact metrics for Home Assistant entities, Alexa-hidden entities, Multi-Way groups and Smart Groups.
+
+When an automatic legacy migration has been performed, a migration banner links directly to the Migration Center.
 
 ## Language modes
 
-The Control Hub supports:
+The unified shell supports:
 
-- `Auto` — follows the Home Assistant language.
-- `العربية` — forces Arabic / RTL presentation.
-- `English` — forces English / LTR presentation.
+- `Auto` — follows Home Assistant language;
+- `العربية` — Arabic / RTL;
+- `English` — English / LTR.
 
-The language selection is intended to make one installation usable by both installers and end users without maintaining separate interfaces.
+The selected mode is also passed to the embedded Eshtaya tools where supported.
 
 ---
 
@@ -119,32 +141,25 @@ The language selection is intended to make one installation usable by both insta
 
 HomeAssistant Entity Control is the entity administration and Alexa exposure module.
 
-It is designed for homes where hundreds or thousands of Home Assistant entities make normal per-entity administration too slow.
+It is designed for installations where manually editing hundreds of Home Assistant entities becomes impractical.
 
 ### Entity naming
 
-Entity display names can be edited directly through Home Assistant's **Entity Registry**.
+Display names can be changed through Home Assistant's Entity Registry.
 
-This means:
+The normal rename workflow focuses on safe display-name administration rather than blindly changing entity IDs.
 
-- No external PHP endpoint is required.
-- No Home Assistant API token is stored by the tool.
-- A user-defined display name can be saved quickly.
-- The custom name can be reset so Home Assistant returns to the original/friendly name.
+### Alexa exposure modes
 
-The tool does **not** blindly rewrite entity IDs as part of the normal rename action. It focuses on safe display-name administration.
-
-### Alexa exposure rules
-
-Every entity can use one of three modes:
+Each entity can use:
 
 | Rule | Meaning |
 |---|---|
-| **Auto** | Let the domain/default rules decide |
-| **Force Show** | Explicitly expose this entity even when broader rules would normally hide it |
-| **Force Hide** | Explicitly exclude this entity from the generated Alexa hidden list |
+| **Auto** | Let domain/default logic decide |
+| **Force Show** | Explicitly expose the entity |
+| **Force Hide** | Explicitly exclude the entity |
 
-Rule precedence is:
+Effective precedence is:
 
 ```text
 Force Show
@@ -155,182 +170,116 @@ Force Show
 → Included
 ```
 
-`Force Show` has the highest priority intentionally. This allows, for example, one useful sensor or automation to remain exposed while the rest of its domain is disabled.
-
-### Domain rules
-
-Entire Home Assistant domains can be enabled or disabled from Alexa exposure logic.
-
-Typical use cases:
-
-- Keep `light`, `cover`, `climate` or selected `switch` entities available.
-- Hide noisy domains such as diagnostics or helper entities.
-- Use explicit Force Show exceptions without opening the complete domain.
-
-### Automatic exclusion rules
-
-Entity Control can automatically exclude entities using:
-
-- `entity_category`
-- entity ID/name keywords
-
-This is useful for technical controls such as diagnostics, child locks, LED/backlight controls or other implementation entities that should not become voice-assistant devices.
-
 ### Search and filters
 
-The entity view supports filtering by:
+Entity Control supports filtering by:
 
-- Search text.
-- Domain.
-- Home Assistant Area.
-- Source integration/platform.
-- Available / unavailable state.
-- Alexa effective state.
-- Explicit overrides.
+- text search;
+- entity domain;
+- Home Assistant Area;
+- source integration/platform;
+- available/unavailable state;
+- Alexa effective state;
+- explicit overrides.
 
 ### Multi-select batch actions
 
-For large installations, you can select many entities and apply a rule in one operation:
+Large installations can select many entities and apply a rule in one operation:
 
-- Show selected.
-- Hide selected.
+- Show selected;
+- Hide selected;
 - Return selected to Auto.
 
-Keyword-based bulk editing is also available when an installation uses consistent naming conventions.
+### Orphan rules
 
-### Orphan rule detection
+Explicit rules whose entities are currently missing are shown as orphan rules instead of being silently removed. This prevents temporary integration outages from destroying configuration.
 
-An explicit rule can remain after an entity is removed, renamed or temporarily no longer loaded.
+### Import / export
 
-Entity Control identifies those rules as **orphan rules** instead of silently deleting them.
+Portable `alexa_rules.json` backups can contain:
 
-This matters because an integration can be temporarily unavailable and its entities may return later. Cleanup is therefore an explicit maintenance action.
+- domain rules;
+- per-entity rules;
+- excluded entity categories;
+- excluded keywords.
 
-### Alexa rules import/export
+The module also keeps a backup before replacing the active rule set during import.
 
-The module supports portable `alexa_rules.json` backups containing:
+### Dual Alexa hidden files
 
-- Domain enabled/disabled settings.
-- Entity Force Show / Force Hide rules.
-- Automatic excluded entity categories.
-- Automatic excluded name keywords.
-
-This format can be moved between Home Assistant installations or used when migrating from the former standalone Entity Manager.
-
-Before replacing the active rule set with an imported backup, the module keeps a backup of the current rule configuration.
-
-### Dual hidden file synchronization
-
-The module maintains these files:
+Entity Control maintains:
 
 ```text
 /config/hidden_entities.yaml
 /config/www/hidden_entities.yaml
 ```
 
-Both are generated from the same effective rules and are kept byte-identical.
+Both are generated from the same rule source and are expected to remain byte-identical.
 
-The second path is useful when another system retrieves the list through Home Assistant's `/local/` path.
-
-On a completely fresh installation where neither file exists, valid empty YAML files are created as:
+On a completely fresh installation, the valid empty representation is:
 
 ```yaml
 []
 ```
 
-Using `[]` instead of a zero-byte file keeps YAML include behavior deterministic.
+### Documentation
 
-### File health
-
-The module checks synchronization using file hashes rather than only checking that both paths exist.
-
-If the copies differ, the UI can report a synchronization problem and regenerate both files from the authoritative rule store.
-
-### Entity Control documentation
-
-- [English documentation](docs/en/ENTITY_CONTROL.md)
+- [English Entity Control documentation](docs/en/ENTITY_CONTROL.md)
 - [الشرح بالعربية](docs/ar/ENTITY_CONTROL.md)
 
 ---
 
 ## 2. Tuya Entity Control
 
-Tuya Entity Control replaces the former external PHP Tuya administration page with a native Home Assistant module.
+Tuya Entity Control replaces the former external PHP administration page with a native Home Assistant workflow.
 
-The browser communicates only with Home Assistant. Tuya authentication, request signing and access-token handling happen in the backend.
+The browser talks only to Home Assistant. Tuya authentication, signing and access-token handling happen in the backend.
 
-### Portable configuration per Home Assistant
-
-Tuya credentials are **not hard-coded in the integration**.
+### Per-installation configuration
 
 Each Home Assistant installation can configure its own:
 
-- Tuya region/data center.
-- API endpoint when Custom mode is used.
-- Client ID.
-- Client Secret.
+- Tuya region/data center;
+- custom API endpoint when needed;
+- Client ID;
+- Client Secret;
 - UID.
 
-This makes the same HACS repository usable across different homes, customers and Tuya projects.
-
-### Supported region presets
-
-The integration contains presets for the major Tuya OpenAPI regions and also supports a **Custom** endpoint for installations that require a different Tuya endpoint.
-
-Because Tuya projects must match the correct data center, choosing the region that matches the Tuya IoT project is important.
+This makes one HACS repository usable across multiple customers and Tuya projects.
 
 ### Connection validation
 
-When complete Tuya credentials are entered, the configuration flow validates the connection before accepting the account configuration.
+When complete Tuya credentials are supplied, the setup/reconfigure flow can validate the account before accepting the configuration.
 
-The Tuya control interface also provides account/status controls so the installer can identify configuration problems without using the former PHP page.
+### Device administration
 
-### Device list
+The module can expose information including:
 
-The module can load the devices assigned to the configured Tuya UID and expose information such as:
+- device name;
+- Device ID;
+- online/offline state;
+- category;
+- Product ID;
+- UUID and additional device details when available;
+- Shadow Properties.
 
-- Device name.
-- Device ID.
-- Online/offline state.
-- Category.
-- Product ID.
-- Tuya icon when available.
+### Search and filters
 
-The backend uses a short device-list cache to reduce unnecessary Tuya OpenAPI calls during normal navigation.
+Supported workflows include:
 
-### Search, categories and filtering
+- device-name search;
+- Device-ID search;
+- category/product search;
+- Online / Offline filtering;
+- pagination for larger projects.
 
-The interface supports:
+### Main device rename
 
-- Device-name search.
-- Device-ID search.
-- Category search/filtering.
-- Product-ID search.
-- Online filter.
-- Offline filter.
-- Pagination for larger projects.
+The primary device name can be changed through Tuya OpenAPI. This is a Tuya-side rename rather than only a Home Assistant display label.
 
-Category codes are presented with friendlier category descriptions where known.
+### Property / gang custom names
 
-### Device details
-
-For an individual Tuya device, the tool can request detailed device information from Tuya and expose available fields such as:
-
-- UUID.
-- Product ID.
-- Local/WAN IP information when returned by Tuya.
-- Category.
-- Current Shadow Properties.
-
-### Main Tuya device rename
-
-The main device name can be edited directly through Tuya OpenAPI.
-
-This is a Tuya-side change, not merely a Home Assistant display label.
-
-### Switch / DP custom-name editor
-
-For devices that expose supported Shadow Properties, the module identifies actual naming targets such as:
+Supported Shadow Properties can expose naming targets such as:
 
 ```text
 switch_1
@@ -340,42 +289,21 @@ socket_1
 control
 ```
 
-The custom name can then be updated using Tuya's property `custom_name` functionality.
-
-This is especially useful for multi-gang Tuya wall switches where every gang needs a meaningful name before or during commissioning.
+Where Tuya supports `custom_name`, the tool can edit those sub-names directly.
 
 ### Bulk editor
 
-Large installations often contain many multi-gang switches.
+The bulk workflow reduces repetitive commissioning work when a project contains many multi-gang Tuya devices.
 
-The Bulk Editor is intended to reduce repetitive work by loading compatible device properties and allowing multiple main/sub-name updates from one workflow.
-
-Backend property loading uses bounded concurrency to avoid generating an uncontrolled burst of Tuya API requests.
-
-### Tuya OpenAPI operations
-
-The module currently uses the Tuya OpenAPI flows needed for:
-
-```text
-Authentication / access token
-Device listing by UID
-Device details
-Shadow Properties
-Main device rename
-Property custom-name update
-```
-
-All signing is performed server-side using HMAC-SHA256.
+Backend property loading uses bounded concurrency to avoid uncontrolled API bursts.
 
 ### Credential handling
 
-The Tuya Client Secret and access tokens are never intended to be sent back to the panel in status responses.
+Tuya Client Secret and access tokens are not intended to be returned to the frontend status API or stored in browser local storage.
 
-They are not stored in frontend JavaScript or browser local storage.
+### Documentation
 
-### Tuya Control documentation
-
-- [English documentation](docs/en/TUYA_CONTROL.md)
+- [English Tuya documentation](docs/en/TUYA_CONTROL.md)
 - [الشرح بالعربية](docs/ar/TUYA_CONTROL.md)
 
 ---
@@ -384,13 +312,13 @@ They are not stored in frontend JavaScript or browser local storage.
 
 This module integrates the mature **Eshtaya Multi-Way Control 3.3.1** runtime into the unified platform.
 
-It is not only a UI shortcut. The Multi-Way and Smart Group engines, storage, Home Assistant platforms and reliability logic are part of Eshtaya Smart Control.
+It is not only a shortcut to the previous UI. The runtime, storage, Home Assistant platforms and reliability logic are embedded into Eshtaya Smart Control.
 
 ### Multi-Way engine
 
 Multi-Way creates software-defined 2-way / 3-way / N-way control around a real output.
 
-A typical group contains:
+Example:
 
 ```text
 Physical Output
@@ -405,208 +333,202 @@ Virtual Entity
 └── light.living_room_control
 ```
 
-You can then control one electrical load from multiple Home Assistant-backed wall inputs without requiring traditional electrical multi-way wiring between all controller locations.
+### Controller behavior
 
-### Controller modes
+Supported control concepts include:
 
-Controllers can use behavior such as:
-
-- Mirror.
-- Toggle.
-- Momentary On.
-- Momentary Off.
-- Event.
-- Follow Output.
-
-Advanced groups can also use inversion, reflection and authority/recovery behavior.
+- Mirror;
+- Toggle;
+- Momentary On;
+- Momentary Off;
+- Event;
+- Follow Output;
+- inversion/reflection;
+- source authority and recovery behavior.
 
 ### Rapid physical input reliability
 
-The engine is designed for real wall-switch behavior, including rapid input.
-
-It preserves ordered physical edges, protects against stale cloud echoes and performs final source reconciliation so a delayed integration update is less likely to leave the logical group in the wrong state.
+The engine preserves ordered physical edges, protects against stale cloud command echoes and performs final reconciliation after rapid changes.
 
 ### Performance profiles
-
-Groups can use different reliability/performance profiles according to the installation:
 
 | Profile | Goal |
 |---|---|
 | **Instant** | Lowest perceived wall-switch latency |
-| **Balanced** | Fast operation with more confirmation |
+| **Balanced** | Fast operation with additional confirmation |
 | **Safe** | Stronger verification for slower or unreliable devices |
 
 ### Smart Groups
 
-Smart Groups provide a higher-level grouping engine for Home Assistant entities.
+Smart Groups support physical-controller and virtual aggregate groups while retaining domain-aware behavior.
 
-They support physical-controller groups and virtual groups, while retaining domain-aware behavior instead of reducing every device to a generic ON/OFF switch.
-
-Supported native group domains include categories such as:
-
-- Light.
-- Switch.
-- Cover.
-- Fan.
-- Lock.
-- Media Player.
-- Valve.
-- Sensor.
-- Binary Sensor.
-- Button.
-- Event.
-- Notify.
+Supported group domains include lights, switches, covers, fans, locks, media players, valves, sensors, binary sensors, buttons, events and notify entities.
 
 ### Action Groups
 
-Scene, Script and Automation groups are treated as stateless actions rather than fake persistent switches.
+Scenes, Scripts and Automations are supported as stateless Action Groups with parallel/sequential execution behavior.
 
-Action Groups can execute:
+### Commissioning and maintenance
 
-- Scenes.
-- Scripts.
-- Automations.
+Installer-focused tools include:
 
-Execution can be parallel or sequential depending on the workflow.
+- Learn Mode;
+- Area-aware setup;
+- templates;
+- clone workflows;
+- discovery/commissioning assistance;
+- health and diagnostics;
+- rapid-toggle testing;
+- missing-entity repair/remapping;
+- backup/restore;
+- snapshots and Undo where safe;
+- Configuration Lock;
+- Home Assistant Group Take Over workflows.
 
-### Commissioning tools
+### Native Home Assistant entities
 
-The Multi-Way module includes installer-focused tools such as:
+The integrated runtime forwards supported Home Assistant platforms so resulting virtual groups and diagnostic controls remain first-class Home Assistant entities usable from dashboards, scripts, automations and voice systems.
 
-- Learn Mode.
-- Area-aware setup.
-- Templates.
-- Clone workflows.
-- Group discovery/commissioning assistance.
-- Full-system tests.
-- Rapid-toggle stress testing.
+### Documentation
 
-### Home Assistant Group Take Over
-
-Compatible native Home Assistant Group helpers can be migrated into Eshtaya management while preserving the intended virtual entity identity where the takeover workflow supports it.
-
-Take Over is treated as a controlled migration rather than a blind duplicate/copy operation.
-
-### Health and diagnostics
-
-The engine exposes operational information such as:
-
-- Healthy / degraded state.
-- Missing output/controller/member.
-- Out-of-sync state.
-- Recovering state.
-- Latency information.
-- Quality/failure information.
-- Recent activity and transactions.
-
-### Repair and maintenance
-
-Missing entities can be identified and remapped instead of forcing an installer to recreate the whole group.
-
-The runtime also includes safeguards and maintenance concepts such as bounded verification/retries, command echo handling and optional quarantine/recovery behavior for unreliable members.
-
-### Backup and configuration safety
-
-The integrated module preserves the Multi-Way project's configuration-safety concepts, including:
-
-- Configuration snapshots.
-- Undo for supported configuration operations.
-- Backup/restore.
-- Configuration Lock.
-- Safe handling of destructive migration operations.
-
-### Native Home Assistant platforms
-
-The module can create and manage Home Assistant entities across its supported platforms, allowing the resulting virtual controls and diagnostics to be used normally in:
-
-- Dashboards.
-- Automations.
-- Scripts.
-- Scenes.
-- Voice-assistant integrations.
-
-### Multi-Way documentation
-
-- [English documentation](docs/en/MULTIWAY.md)
+- [English Multi-Way documentation](docs/en/MULTIWAY.md)
 - [الشرح بالعربية](docs/ar/MULTIWAY.md)
 
 ---
 
 ## 4. Documentation Center
 
-The Control Hub contains a Documentation Center so operating guidance is available from the same platform used for administration.
+Documentation Center keeps installer guidance inside the same platform used for administration.
 
-Documentation is organized by tool and includes topics such as:
+It covers:
 
-- What the tool does.
-- Initial configuration.
-- Safe operating workflow.
-- Migration.
-- Security considerations.
-- Architecture.
+- tool purpose;
+- initial setup;
+- safe operating workflow;
+- automatic migration;
+- security;
+- architecture.
 
-Repository documentation is also maintained in both English and Arabic under `/docs`.
+Repository documentation is maintained in English and Arabic under `/docs`.
 
 ---
 
 ## 5. System Center
 
-System Center provides a platform-level view instead of forcing the installer to open each module just to determine whether the system is ready.
+System Center provides a platform-level operational view.
 
-The first release includes information such as:
+It includes:
 
-- Entity Control module availability.
-- Tuya configured/not-configured state.
-- Multi-Way module availability.
-- Alexa hidden-file synchronization health.
-- Detection of previous standalone Eshtaya Entity Manager installations.
-- Detection of previous standalone Eshtaya Multi-Way installations.
-- Migration guidance when a legacy integration is detected.
+- Entity Control availability;
+- Tuya configured/not-configured state;
+- Multi-Way availability;
+- Alexa hidden-file synchronization state;
+- automatic migration state;
+- Migration Center;
+- HACS legacy-cleanup result when available.
 
-Tuya configuration is optional; the rest of Eshtaya Smart Control can operate without a Tuya project configured.
+Tuya is optional. Entity Control and Multi-Way can operate without a configured Tuya project.
+
+---
+
+## 6. Migration Center
+
+**Migration Center** was added in v1.2.0 to make automatic cutover observable instead of opaque.
+
+The visual timeline contains nine stages:
+
+```text
+Detect legacy
+→ Create backup
+→ Copy configuration
+→ Stop legacy engines
+→ Start new runtime
+→ Validate
+→ Remove legacy config entries
+→ Reconcile state/ownership
+→ Clean legacy HACS repositories
+```
+
+Each stage can report:
+
+- Pending;
+- Running;
+- Completed;
+- Failed;
+- Rolled Back;
+- Skipped.
+
+### Before / after comparison
+
+Migration Center shows safe before/after counters for:
+
+- Entity / Alexa rules;
+- Multi-Way groups;
+- Smart Groups.
+
+### Rollback visibility
+
+The UI shows:
+
+- migration backup store name;
+- whether rollback protection is available;
+- whether rollback was used;
+- how many legacy config entries were removed after validation.
+
+### HACS cleanup status
+
+The platform records the result of attempting to uninstall/unregister the two legacy repositories through HACS itself.
+
+No raw `custom_components` folder deletion is performed by the migration engine.
+
+### Downloadable Migration Report
+
+Administrators can download a JSON migration report directly from Migration Center.
+
+The report includes:
+
+- Eshtaya Smart Control version;
+- migration phase;
+- timeline states;
+- before/after counters;
+- validation result;
+- rollback state;
+- HACS cleanup result;
+- recorded migration errors.
+
+For security, the report intentionally excludes:
+
+- Tuya Client Secret;
+- Tuya credentials;
+- raw legacy storage payloads;
+- raw migration backup contents.
 
 ---
 
 # Installation with HACS
 
-Until Eshtaya Smart Control is available in the default HACS store, install it as a custom repository.
+Until Eshtaya Smart Control is included in the default HACS store, install it as a custom repository.
 
-## Add the custom repository
-
-1. Open **HACS**.
-2. Open **Integrations**.
-3. Open the menu in the upper corner.
-4. Select **Custom repositories**.
-5. Add:
+1. Open **HACS → Integrations**.
+2. Open the menu and select **Custom repositories**.
+3. Add:
 
 ```text
 https://github.com/badereshtaya/hacs-eshtaya-smart-control
 ```
 
-6. Select category/type:
+4. Select type:
 
 ```text
 Integration
 ```
 
-7. Install **Eshtaya Smart Control**.
-8. Restart Home Assistant.
-
-## Add the integration
-
-After Home Assistant restarts:
-
-1. Open **Settings**.
-2. Open **Devices & services**.
-3. Choose **Add Integration**.
-4. Search for:
-
-```text
-Eshtaya Smart Control
-```
-
-5. Complete the setup.
-6. Open **Eshtaya Smart Control** from the Home Assistant sidebar.
+5. Install **Eshtaya Smart Control**.
+6. Restart Home Assistant.
+7. Open **Settings → Devices & services → Add Integration**.
+8. Search for **Eshtaya Smart Control**.
+9. Complete setup.
+10. Open the new sidebar panel.
 
 The integration uses a single config entry.
 
@@ -614,129 +536,60 @@ The integration uses a single config entry.
 
 # First setup
 
-Tuya is optional during initial installation.
+Tuya configuration is optional.
 
-You can therefore install Eshtaya Smart Control and immediately use HomeAssistant Entity Control and Multi-Way features without configuring a Tuya account.
+On first setup, Eshtaya Smart Control automatically checks whether the previous standalone Eshtaya integrations are present.
 
-If you enter any Tuya credential fields during setup, provide the complete required Tuya account information so the integration can validate the project.
-
-Typical first-install workflow:
+Recommended workflow:
 
 ```text
-Install from HACS
+Create a full Home Assistant backup
+→ Install Eshtaya Smart Control from HACS
 → Restart Home Assistant
 → Add Eshtaya Smart Control
-→ Open Control Hub
-→ Review System Center
-→ Configure Tuya only if required
-→ Configure/import Entity Control rules
-→ Migrate Multi-Way only when ready
+→ Automatic legacy detection/migration runs when required
+→ Open System Center / Migration Center
+→ Verify migration result and before/after counts
+→ Configure Tuya only when required
 ```
+
+Do **not** manually remove the previous Eshtaya integrations before first setup if you want the automatic migration engine to import their active storage/config-entry state.
+
+A full Home Assistant backup remains recommended even though the integration also creates its own migration backup.
 
 ---
 
-# Tuya Cloud setup
+# Automatic migration
 
-Tuya Entity Control requires a Tuya IoT/OpenAPI project that can access the devices associated with the configured UID.
-
-From the Eshtaya Smart Control configuration/reconfigure flow, configure:
+Eshtaya Smart Control can migrate from:
 
 ```text
-Region
-Client ID
-Client Secret
-UID
+eshtaya_entity_manager
+eshtaya_multiway
 ```
 
-For Custom region mode, configure the API endpoint as well.
+The migration engine is transactional:
 
-## Important region note
-
-The API region must match the Tuya cloud/data center used by the Tuya project and linked devices.
-
-A correct Client ID/Secret with the wrong data-center endpoint can still fail connection validation or device listing.
-
-## Changing Tuya configuration later
-
-Use the Home Assistant integration reconfigure flow instead of editing source files.
-
-This is one of the main differences from the former PHP dashboard: credentials are installation configuration, not constants inside the application source.
-
----
-
-# Alexa hidden entities files
-
-HomeAssistant Entity Control uses one internal rules model to produce both configured files:
+1. Detect legacy config entries and storage.
+2. Create an independent backup under:
 
 ```text
-/config/hidden_entities.yaml
-/config/www/hidden_entities.yaml
+eshtaya_smart_control.migration_backup
 ```
 
-The files are intentionally synchronized.
+3. Copy legacy storage only when the unified destination is not already populated.
+4. Disable legacy config entries before the unified Multi-Way runtime starts.
+5. Start the new Entity Control / Multi-Way / Smart Group runtime.
+6. Validate transferred rule/group counts.
+7. If validation fails, automatically re-enable entries disabled by the migration and record the rollback.
+8. If validation succeeds, remove the old config entries through Home Assistant.
+9. Reconcile Smart Group hidden-member ownership.
+10. Register compatibility aliases for old `eshtaya_multiway.*` services where applicable.
+11. Attempt HACS cleanup through HACS' repository API.
 
-## Why two copies?
+### Compatibility with migration performed on v1.1
 
-`/config/hidden_entities.yaml` is suitable for local Home Assistant configuration/include usage.
-
-`/config/www/hidden_entities.yaml` can be served through Home Assistant's `/local/` path when another authorized system needs to read the generated list.
-
-## Fresh installation behavior
-
-When neither file exists, Entity Control creates both as a valid empty list:
-
-```yaml
-[]
-```
-
-After rules are configured, both files are regenerated from the effective exclusion rules.
-
-## Source of truth
-
-Treat the Entity Control rules stored by Eshtaya Smart Control as the source of truth.
-
-Manual changes to generated files may be replaced by the next regeneration or rule update.
-
----
-
-# Migration from previous Eshtaya integrations
-
-Eshtaya Smart Control uses a new integration domain:
-
-```text
-eshtaya_smart_control
-```
-
-This is intentional. It allows a controlled transition without silently taking ownership of a live older installation.
-
-## From Eshtaya Entity Manager
-
-The preferred migration options are:
-
-1. Use the built-in legacy rule import when applicable.
-2. Export `alexa_rules.json` from the old tool and import it into HomeAssistant Entity Control.
-3. Verify the effective hidden count and generated files.
-4. Remove the old tool after verification.
-
-Existing `hidden_entities.yaml` data is handled conservatively because it may already be used by another part of the installation.
-
-## From Eshtaya Multi-Way Control
-
-Do **not** let two Multi-Way engines actively control the same physical group at the same time.
-
-Recommended migration:
-
-1. Open the existing standalone **Eshtaya Multi-Way Control**.
-2. Create/export a complete backup of its configuration.
-3. Install and configure **Eshtaya Smart Control**.
-4. Restore/import the configuration into the integrated Multi-Way module using the supported backup workflow.
-5. Verify the virtual entities and their entity IDs.
-6. Verify dashboards, scenes, scripts and automations that reference those virtual entities.
-7. Test real wall switches and controllers.
-8. Check health/diagnostics.
-9. Disable or remove the old standalone Multi-Way integration only after validation.
-
-The platform intentionally avoids a blind automatic takeover while the old runtime may still be loaded, because duplicate virtual ownership can cause unavailable entities or conflicting control.
+If a system already completed the automatic migration using v1.1.0, upgrading to v1.2.0 hydrates that saved migration record into a completed Migration Center timeline instead of showing false Pending stages.
 
 ### Migration documentation
 
@@ -745,68 +598,115 @@ The platform intentionally avoids a blind automatic takeover while the old runti
 
 ---
 
+# Tuya Cloud setup
+
+Tuya Entity Control requires a Tuya IoT/OpenAPI project that can access the devices associated with the configured UID.
+
+Configure:
+
+```text
+Region
+Client ID
+Client Secret
+UID
+```
+
+For Custom region mode, also configure the API endpoint.
+
+## Region note
+
+The OpenAPI region must match the Tuya data center used by the project and linked devices. Correct credentials against the wrong data center can still fail connection validation.
+
+## Changing Tuya configuration later
+
+Use Home Assistant's integration reconfigure flow rather than editing source files.
+
+---
+
+# Alexa hidden entities files
+
+Entity Control uses one internal rule model to generate:
+
+```text
+/config/hidden_entities.yaml
+/config/www/hidden_entities.yaml
+```
+
+Both files are intentionally synchronized.
+
+`/config/hidden_entities.yaml` is suitable for local Home Assistant configuration/include usage.
+
+`/config/www/hidden_entities.yaml` can be served through Home Assistant's `/local/` path when another authorized system needs the generated list.
+
+Fresh installations create valid empty YAML as:
+
+```yaml
+[]
+```
+
+Treat Entity Control storage as the source of truth. Manual edits to generated files can be replaced during regeneration.
+
+---
+
 # Architecture
 
-Eshtaya Smart Control is one Home Assistant custom integration with modular internal engines.
+Eshtaya Smart Control is one Home Assistant custom integration with isolated internal modules.
 
 ```text
 Eshtaya Smart Control
 │
 ├── Unified Control Hub
-│   ├── Home
+│   ├── Home dashboard
 │   ├── Documentation Center
-│   └── System Center
+│   ├── System Center
+│   └── Migration Center
 │
 ├── HomeAssistant Entity Control
 │   ├── Entity Registry naming
 │   ├── Alexa rules engine
-│   ├── Import / export
-│   ├── Batch actions
+│   ├── import / export
+│   ├── batch actions
 │   └── hidden_entities.yaml synchronization
 │
 ├── Tuya Entity Control
 │   ├── Tuya OpenAPI client
 │   ├── HMAC request signing
 │   ├── access-token handling
-│   ├── per-installation account configuration
+│   ├── per-installation credentials
 │   ├── device/cache manager
 │   └── admin WebSocket API
 │
-└── Multi-Way & Smart Groups
-    ├── MultiWayManager
-    ├── Multi-Way storage
-    ├── SmartGroupManager
-    ├── Smart Group storage
-    ├── native Home Assistant platforms
-    ├── Action Groups
-    ├── commissioning / Learn workflows
-    ├── diagnostics / health
-    └── migration / Take Over tools
+├── Multi-Way & Smart Groups
+│   ├── MultiWayManager
+│   ├── Multi-Way storage
+│   ├── SmartGroupManager
+│   ├── Smart Group storage
+│   ├── native Home Assistant platforms
+│   ├── Action Groups
+│   ├── commissioning / Learn workflows
+│   └── diagnostics / health
+│
+└── Migration subsystem
+    ├── transactional legacy migration
+    ├── migration backup
+    ├── validation / rollback
+    ├── legacy service compatibility
+    ├── HACS cleanup
+    └── Migration Center report API
 ```
-
-## One sidebar panel
-
-Only the unified Eshtaya Smart Control panel is registered as the platform's main sidebar entry.
-
-Individual tools render inside the unified shell.
 
 ## WebSocket namespaces
 
-Management APIs are namespaced so each tool can evolve independently.
+Management APIs are namespaced beneath the unified domain.
 
-The Multi-Way API is isolated under the unified domain, for example:
+Examples:
 
 ```text
+eshtaya_smart_control/overview
+eshtaya_smart_control/migration_report
+eshtaya_smart_control/entity/...
 eshtaya_smart_control/multiway/...
 ```
-
-Entity Control and Tuya Control also use their own command namespaces under the platform.
-
-## Home Assistant platforms
-
-The integrated Multi-Way/Smart Groups engine forwards the required native Home Assistant platforms from the unified config entry.
-
-This keeps virtual groups and diagnostic/control entities first-class Home Assistant entities rather than UI-only objects.
 
 ### Architecture documentation
 
@@ -817,34 +717,33 @@ This keeps virtual groups and diagnostic/control entities first-class Home Assis
 
 # Security
 
-Eshtaya Smart Control is an administrative integration. The security model is therefore intentionally different from exposing a standalone public management page.
+Eshtaya Smart Control is an administrative integration.
 
 ## Home Assistant authentication
 
-- The sidebar management panel requires a Home Assistant administrator.
+- Sidebar management requires a Home Assistant administrator.
 - Management WebSocket commands are administrator-only.
-- There is no separate query-string dashboard password.
-- There is no Home Assistant long-lived access token embedded in the integration.
+- No separate public dashboard password is used.
+- No Home Assistant long-lived access token is embedded in the integration.
 
 ## Tuya credentials
 
 - Tuya credentials are configured per Home Assistant installation.
-- Client Secret is handled by the backend.
+- Client Secret remains backend-side.
 - Tuya request signing occurs in the backend.
-- Tuya access tokens are not stored in browser local storage.
-- Status responses should not expose the stored Client Secret.
+- Access tokens are not stored in browser local storage.
+
+## Migration report security
+
+Downloaded migration reports are intentionally sanitized and do not expose Tuya credentials or raw legacy/backup storage.
 
 ## Generated Alexa files
 
-Alexa rule output is written locally beneath `/config`.
+`/config/www/hidden_entities.yaml` lives under Home Assistant's web-served `www` directory. Use that copy only when your architecture intentionally requires external retrieval.
 
-Remember that `/config/www/hidden_entities.yaml` is intentionally placed under Home Assistant's web-served `www` directory. Use that copy only when your architecture requires external retrieval of the generated list.
+Never commit customer Tuya Client Secrets, Home Assistant tokens or deployment credentials to the repository.
 
-## Public repositories
-
-Never commit real customer Tuya Client Secrets, Home Assistant tokens or other deployment credentials to this repository.
-
-See [SECURITY.md](SECURITY.md) for security reporting guidance.
+See [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -852,58 +751,87 @@ See [SECURITY.md](SECURITY.md) for security reporting guidance.
 
 ## Eshtaya Smart Control does not appear after HACS installation
 
-Check:
+Verify:
 
-1. HACS downloaded the repository as an **Integration**.
+1. HACS installed the repository as an **Integration**.
 2. This directory exists:
 
 ```text
 /config/custom_components/eshtaya_smart_control/
 ```
 
-3. Home Assistant was restarted after installation/update.
+3. Home Assistant was restarted.
 4. Review **Settings → System → Logs** for `eshtaya_smart_control` errors.
 
-## The sidebar still shows an older interface after updating
+## Old interface appears after an update
 
-The frontend asset is versioned, but a browser can still retain previous application resources.
+1. Restart Home Assistant.
+2. Hard refresh the browser (`Ctrl+F5`).
+3. Reload the Home Assistant mobile/tablet webview when applicable.
 
-Try:
+v1.2 uses a versioned Control Hub frontend module to reduce stale-cache problems.
 
-1. Restart Home Assistant after upgrading the integration.
-2. Hard refresh the browser (`Ctrl+F5` on common desktop browsers).
-3. Reload the Home Assistant app/webview if using a mobile/tablet client.
+## Automatic migration fails
 
-## Tuya account validation fails
+Open **System Center → Migration Center**.
 
 Check:
 
-- Correct Client ID.
-- Correct Client Secret.
-- Correct UID.
-- Tuya project permissions/subscriptions.
-- Correct Tuya data-center region.
-- Device/account linkage inside the Tuya IoT project.
+- failed timeline stage;
+- recorded error;
+- before/after counts;
+- rollback state;
+- whether legacy config entries were restored.
 
-A region mismatch is a common cause when credentials look correct but API calls fail.
+If cutover failed before final cleanup, the migration engine attempts to re-enable the legacy entries it disabled.
+
+The independent migration backup is kept under:
+
+```text
+eshtaya_smart_control.migration_backup
+```
+
+## HACS cleanup is skipped
+
+The functional Home Assistant migration can complete even when HACS is not ready during cleanup.
+
+Migration Center may show states such as:
+
+```text
+hacs_not_loaded
+hacs_api_unavailable
+not_registered
+removed
+```
+
+The integration never compensates by blindly deleting legacy custom-component folders.
+
+## Tuya validation fails
+
+Check:
+
+- Client ID;
+- Client Secret;
+- UID;
+- Tuya project permissions/subscriptions;
+- data-center region;
+- device/account linkage.
 
 ## Tuya device list is empty
 
-Confirm that the configured UID is the one whose devices are linked to the Tuya project accessible by the configured cloud credentials.
+Confirm that the configured UID belongs to the account whose devices are linked to the configured Tuya IoT project.
 
-## A Tuya gang/property is not available for rename
+## A Tuya property cannot be renamed
 
-Tuya Entity Control only offers properties returned by the device's Shadow Properties and recognized as supported naming targets such as `switch_x`, `socket_x` or `control`.
+The tool can only edit naming targets actually exposed by Tuya through the relevant Shadow Property/OpenAPI flow.
 
-If Tuya does not expose the property through that API path, the tool cannot safely invent it.
+## Alexa files differ
 
-## Alexa files are different
+Open Entity Control/System Center and regenerate synchronization. The stored Entity Control rules remain the source of truth.
 
-Open Entity Control/System Center and repair/regenerate synchronization. The authoritative rules will be used to rewrite both generated files.
+## An entity remains hidden after enabling its domain
 
-## An entity remains hidden even after its domain is enabled
-
-Check the effective rule order:
+Check effective precedence:
 
 ```text
 Force Show
@@ -912,14 +840,6 @@ Domain setting
 Auto category rule
 Auto keyword rule
 ```
-
-An explicit Force Hide or automatic rule can still exclude it.
-
-## Multi-Way virtual entities conflict during migration
-
-Do not keep the old standalone engine and new integrated engine controlling the same migrated groups simultaneously.
-
-Return to the controlled migration process and verify ownership before removing the old integration.
 
 ---
 
@@ -959,28 +879,19 @@ hacs-eshtaya-smart-control/
 │       ├── manifest.json
 │       ├── panel.py
 │       ├── websocket.py
+│       ├── migration.py
+│       ├── migration_center.py
+│       ├── legacy_cleanup.py
+│       ├── legacy_compat.py
 │       ├── entity_control/
-│       │   ├── manager*.py
-│       │   └── websocket*.py
 │       ├── tuya/
-│       │   ├── client.py
-│       │   ├── manager.py
-│       │   └── websocket.py
 │       ├── multiway/
-│       │   ├── manager.py
-│       │   ├── smart_group_manager.py
-│       │   ├── storage.py
-│       │   ├── smart_storage.py
-│       │   ├── native_group_migration.py
-│       │   └── ...
 │       ├── frontend/
-│       │   ├── smart-control-panel.js
+│       │   ├── smart-control-panel-v12.js
 │       │   ├── tuya-control.js
 │       │   ├── entity/
 │       │   └── multiway/
 │       ├── translations/
-│       │   ├── ar.json
-│       │   └── en.json
 │       └── brand/
 ├── docs/
 │   ├── ar/
@@ -996,31 +907,28 @@ hacs-eshtaya-smart-control/
 
 # Development and validation
 
-The repository includes validation workflows intended to catch packaging and Home Assistant/HACS compatibility problems before release.
-
-Local development should at minimum validate:
+The repository includes validation workflows covering:
 
 ```text
 Python syntax
 JavaScript syntax
-JSON syntax
 HACS repository structure
 Home Assistant / hassfest validation
 ```
 
-When changing one module, keep its backend command namespace and frontend boundary isolated from the other tools unless the change belongs in the unified Core/System layer.
+The v1.2.0 Migration Center implementation was verified using the repository's GitHub validation workflow with HACS, hassfest, Python compilation and JavaScript syntax checks.
 
 ## Versioning
 
-The unified platform starts at:
+The unified project was introduced at `1.0.0` and now follows its own version lifecycle independently from the embedded Multi-Way runtime version.
+
+Current release:
 
 ```text
-1.0.0
+1.2.0
 ```
 
-The embedded Multi-Way runtime originated from Eshtaya Multi-Way Control `3.3.1`, but the unified platform has its own independent version lifecycle going forward.
-
-See [CHANGELOG.md](CHANGELOG.md) for release changes.
+See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -1032,93 +940,93 @@ Eshtaya Smart Control is licensed under the [MIT License](LICENSE).
 
 # شرح الأقسام بالعربي
 
-هذا ملخص سريع للأقسام الرئيسية داخل **Eshtaya Smart Control** وما الفائدة من كل واحد:
+هذا ملخص سريع للأقسام الرئيسية داخل **Eshtaya Smart Control** وفائدة كل قسم:
 
 ## 1 — HomeAssistant Entity Control
 
-هذا القسم مخصص لإدارة كيانات Home Assistant نفسها بشكل أسرع وأسهل، خصوصًا في البيوت التي تحتوي عدد كبير جدًا من الأجهزة والـEntities.
-
 **شو بعمل؟**
 
-- تغيير الاسم الظاهر للـEntity بسرعة.
-- تحديد إذا الـEntity يظهر على Alexa أو ينحجب عنها.
-- خيارات `Auto / Show / Hide` لكل Entity.
-- فلترة وبحث حسب الغرفة، النوع، الـIntegration والحالة.
-- تعديل مجموعة كبيرة من الـEntities مرة واحدة.
+- تغيير الاسم الظاهر للـEntity من Entity Registry.
+- تحديد `Auto / Show / Hide` بالنسبة لـAlexa.
+- بحث وفلترة حسب الغرفة والنوع والـIntegration والحالة.
+- تعديل عدد كبير من الـEntities مرة واحدة.
 - استيراد وتصدير `alexa_rules.json`.
-- كشف القواعد القديمة المرتبطة بـEntities لم تعد موجودة.
-- إنشاء ومزامنة الملفين:
+- كشف Orphan Rules.
+- إنشاء ومزامنة:
   - `/config/hidden_entities.yaml`
   - `/config/www/hidden_entities.yaml`
 
-**الفائدة:** بدل ما تدور على كل Entity وتعدلها لوحدها أو تعدل ملفات يدويًا، بتدير الموضوع كامل من لوحة واحدة وبطريقة منظمة وآمنة.
+**الفائدة:** إدارة مئات أو آلاف الـEntities من مكان واحد بدل التعديل اليدوي Entity وراء Entity.
 
 ## 2 — Tuya Entity Control
 
-هذا القسم بديل احترافي لصفحة إدارة Tuya الخارجية، وموجود بالكامل داخل Home Assistant.
-
 **شو بعمل؟**
 
-- تربط حساب/مشروع Tuya لكل Home Assistant بشكل مستقل.
-- تحدد Region وClient ID وClient Secret وUID من الإعدادات بدل ما يكونوا مكتوبين داخل الكود.
-- يعرض أجهزة Tuya وحالة Online/Offline.
-- بحث وتصنيف للأجهزة.
-- عرض Device ID وProduct ID وUUID والتفاصيل المتاحة.
-- تغيير الاسم الرئيسي للجهاز على Tuya مباشرة.
-- تغيير أسماء مخارج الجهاز مثل `switch_1` و`switch_2` وغيرها إذا Tuya تسمح بذلك.
-- Bulk Edit لتعديل عدد كبير من الأجهزة والمخارج بطريقة أسرع.
+- إعداد حساب/مشروع Tuya لكل Home Assistant بشكل مستقل.
+- Region + Client ID + Client Secret + UID من Config Entry.
+- Test Connection.
+- عرض Online / Offline والأجهزة والتفاصيل.
+- تعديل الاسم الرئيسي للجهاز على Tuya.
+- تعديل أسماء `switch_1` و`switch_2` و`socket_x` وغيرها عندما تدعمها Tuya.
+- Bulk Edit للمشاريع الكبيرة.
 
-**الفائدة:** تجهيز أجهزة Tuya وتسميتها أثناء تركيب أي مشروع بصير من نفس Home Assistant بدون PHP منفصل وبدون تعديل أسرار داخل الملفات.
+**الفائدة:** تجهيز وتسميات Tuya تصير من داخل Home Assistant بدون صفحة PHP خارجية وبدون أسرار مكتوبة داخل الكود.
 
 ## 3 — Multi-Way & Smart Groups
 
-هذا القسم هو محرك التحكم المتقدم للمفاتيح والجروبات، ومبني على Eshtaya Multi-Way Control.
-
 **شو بعمل؟**
 
-- إنشاء 2-Way و3-Way وMulti-Way برمجيًا بين المفاتيح.
-- ربط أكثر من زر/مفتاح مع نفس الحمل الحقيقي.
-- إنشاء Smart Groups ذكية للإنارة والستائر والمراوح وغيرها.
-- إنشاء Action Groups للمشاهد والسكريبتات والأوتوميشنز.
-- Learn Mode للتعرف على المفتاح الحقيقي بسهولة أثناء التركيب.
-- فحص سرعة واستجابة المجموعات وحالتها.
-- كشف الأجهزة أو الأعضاء غير المتوفرين أو غير المتزامنين.
-- أدوات Repair وDiagnostics وTesting.
-- Backup / Restore وSnapshots وحماية الإعدادات.
+- 2-Way / 3-Way / N-Way برمجيًا.
+- ربط أكثر من Controller بنفس الحمل.
+- Smart Groups وAction Groups.
+- Learn Mode وCommissioning.
+- Health وDiagnostics وTesting.
+- Missing Entity Repair.
+- Backup / Restore / Snapshots.
+- Configuration Lock وTake Over workflows.
 
-**الفائدة:** بتقدر تبني منطق تحكم احترافي جدًا للبيت بدون تمديدات 2-Way تقليدية، وتدير جروبات كبيرة مع أدوات فحص وصيانة مناسبة للمشاريع الحقيقية.
+**الفائدة:** بناء منطق تحكم احترافي للمشاريع بدون الاعتماد على تمديدات Multi-Way التقليدية، مع أدوات فحص وصيانة مناسبة للتركيب الحقيقي.
 
 ## 4 — Documentation Center
 
-مركز شرح موجود داخل المنصة نفسها.
-
 **شو بعمل؟**
 
-- يشرح كل أداة ووظيفتها.
-- يوضح طريقة الإعداد والاستخدام.
-- يعطي تعليمات للهجرة من الإضافات القديمة.
-- يوفر الشرح بالعربي والإنجليزي.
+- شرح الأدوات بالعربي والإنجليزي.
+- تعليمات الإعداد والاستخدام والهجرة والأمان.
 
-**الفائدة:** أي شخص يفتح النظام لاحقًا يقدر يفهم الأدوات وطريقة استخدامها بدون ما يرجع يدور على رسائل أو ملفات خارجية.
+**الفائدة:** الفني أو المسؤول يقدر يفهم النظام من نفس المنصة بدل الرجوع لصفحات وأدوات خارجية.
 
 ## 5 — System Center
 
-هذا القسم يعطي نظرة عامة على صحة المنصة وكل الوحدات الموجودة فيها.
+**شو بعمل؟**
+
+- يعرض حالة الوحدات.
+- حالة إعداد Tuya.
+- صحة ملفي Alexa YAML.
+- حالة الهجرة التلقائية.
+- HACS cleanup status.
+
+**الفائدة:** تشوف صحة المنصة كاملة من مكان واحد.
+
+## 6 — Migration Center
 
 **شو بعمل؟**
 
-- يوضح إذا Entity Control جاهز.
-- يوضح إذا Tuya مهيأة أو لا.
-- يوضح حالة Multi-Way.
-- يفحص إذا ملفي `hidden_entities.yaml` متزامنين.
-- يكتشف وجود Eshtaya Entity Manager القديم.
-- يكتشف وجود Eshtaya Multi-Way Control القديم.
-- يعطي تنبيه وإرشاد للهجرة بدل تشغيل نظامين متضاربين.
+- يكتشف `Eshtaya Entity Manager` و`Eshtaya Multi-Way Control` القديمات تلقائيًا.
+- يعمل Backup مستقل قبل Cutover.
+- ينقل Entity Rules وMulti-Way Groups وSmart Groups.
+- يوقف المحركات القديمة قبل تشغيل الجديدة.
+- يقارن الأعداد قبل وبعد.
+- لا يحذف Config Entries القديمة إلا بعد Validation ناجح.
+- إذا فشل الانتقال يعمل Rollback ويعيد تفعيل القديم عندما يكون ذلك ممكنًا.
+- يعرض Timeline لكل خطوة.
+- يعرض Rollback readiness وHACS cleanup.
+- يسمح بتنزيل Migration Report JSON آمن للدعم.
 
-**الفائدة:** بدل ما تفحص كل قسم لحاله، بتشوف من مكان واحد إذا المنصة كلها سليمة وجاهزة أو في جزء يحتاج إعداد أو إصلاح.
+**الفائدة:** تقدر تنزل Eshtaya Smart Control على Home Assistant فيه الإضافات القديمة وتخلي عملية الانتقال تتم بطريقة منظمة ومراقبة بدل النقل اليدوي والخوف من ضياع الجروبات أو تضارب المحركات.
 
-## الفكرة العامة من Eshtaya Smart Control
+## الفكرة العامة
 
-الهدف النهائي من المشروع هو أن تصبح **Eshtaya Smart Control مكتبة التحكم الرئيسية لكل أدوات Eshtaya Smart داخل Home Assistant**.
+الهدف هو أن تصبح **Eshtaya Smart Control مكتبة التحكم الرئيسية لكل أدوات Eshtaya Smart داخل Home Assistant**.
 
-يعني أي أداة جديدة مستقبلًا—إدارة أجهزة، Commissioning، صيانة، مراقبة، Alexa، Tuya، شبكات، مشاريع أو أدوات فنيين—يمكن إضافتها كقسم جديد داخل نفس المنصة بدل إنشاء Integration منفصلة كل مرة.
+أي أدوات مستقبلية مثل Commissioning، صيانة، شبكات، مراقبة، إدارة مشاريع أو أدوات فنيين يمكن إضافتها كأقسام جديدة داخل نفس المنصة بدل إنشاء Integration منفصلة لكل وظيفة.
