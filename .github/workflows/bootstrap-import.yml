@@ -16,20 +16,67 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Decode source package
+      - name: Fetch legacy source modules
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/eshtaya-source"
-          cat source_payload.part_* | base64 --decode > "$RUNNER_TEMP/eshtaya-source.tar.gz"
-          tar -xzf "$RUNNER_TEMP/eshtaya-source.tar.gz" -C "$RUNNER_TEMP/eshtaya-source"
+          git clone --depth 1 https://github.com/badereshtaya/hacs-eshtaya-multiway-control.git "$RUNNER_TEMP/multiway"
+          git clone --depth 1 https://github.com/badereshtaya/hacs-eshtaya-entity-manager.git "$RUNNER_TEMP/entity-manager"
 
-      - name: Import complete repository
+      - name: Build unified source tree
         shell: bash
         run: |
           set -euo pipefail
-          cp -a "$RUNNER_TEMP/eshtaya-source/." ./
+          TARGET="custom_components/eshtaya_smart_control"
+          rm -rf "$TARGET/multiway" "$TARGET/brand" "$TARGET/frontend/multiway" "$TARGET/entity_control" "$TARGET/frontend/entity"
+          mkdir -p "$TARGET" "$TARGET/frontend"
+
+          cp -a "$RUNNER_TEMP/multiway/custom_components/eshtaya_multiway" "$TARGET/multiway"
+          cp -a "$RUNNER_TEMP/multiway/custom_components/eshtaya_multiway/brand" "$TARGET/brand"
+          mkdir -p "$TARGET/frontend/multiway"
+          cp "$RUNNER_TEMP/multiway/custom_components/eshtaya_multiway/frontend/panel.js" "$TARGET/frontend/multiway/panel.js"
+          rm -rf \
+            "$TARGET/multiway/brand" \
+            "$TARGET/multiway/frontend" \
+            "$TARGET/multiway/translations"
+          rm -f \
+            "$TARGET/multiway/config_flow.py" \
+            "$TARGET/multiway/frontend.py" \
+            "$TARGET/multiway/manifest.json"
+
+          mkdir -p "$TARGET/entity_control" "$TARGET/frontend/entity"
+          cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/manager.py" "$TARGET/entity_control/manager.py"
+          cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/manager_v11.py" "$TARGET/entity_control/manager_v11.py"
+          cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/manager_v12.py" "$TARGET/entity_control/manager_v12.py"
+          cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/frontend/eshtaya-entity-manager-panel.js" "$TARGET/frontend/entity/eshtaya-entity-manager-panel.js"
+          cp "$RUNNER_TEMP/entity-manager/custom_components/eshtaya_entity_manager/frontend/eshtaya-entity-manager-panel-loader.js" "$TARGET/frontend/entity/eshtaya-entity-manager-panel-loader.js"
+
+      - name: Apply Eshtaya Smart Control overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat source_payload.part_* | base64 --decode > "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz"
+          tar -xzf "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz" -C .
           rm -f source_payload.part_* source_payload.ready
+          find . -type d -name '__pycache__' -prune -exec rm -rf {} +
+          find . -type f -name '*.pyc' -delete
+
+      - name: Validate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q custom_components/eshtaya_smart_control
+          node --check custom_components/eshtaya_smart_control/frontend/smart-control-panel.js
+          node --check custom_components/eshtaya_smart_control/frontend/tuya-control.js
+          node --check custom_components/eshtaya_smart_control/frontend/entity/eshtaya-entity-manager-panel.js
+          node --check custom_components/eshtaya_smart_control/frontend/entity/eshtaya-entity-manager-panel-loader.js
+          node --check custom_components/eshtaya_smart_control/frontend/multiway/panel.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('custom_components/eshtaya_smart_control').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          PY
           find . -type d -name '__pycache__' -prune -exec rm -rf {} +
           find . -type f -name '*.pyc' -delete
 
@@ -37,6 +84,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f .github/workflows/bootstrap-import.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
