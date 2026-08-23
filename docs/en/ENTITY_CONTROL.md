@@ -1,41 +1,55 @@
-# HomeAssistant Entity Control
+# Entity & Alexa Control
 
 ## Purpose
+Entity & Alexa Control is the large-installation administration surface for Home Assistant entity display names and Alexa exposure rules. It writes through Home Assistant's Entity Registry and maintains two generated exclusion files from one rule model.
 
-Entity Control is the Home Assistant and Alexa administration module of Eshtaya Smart Control. It is designed for installations with many entities where renaming and voice-assistant exposure need to be managed quickly and consistently.
+## Core concepts
+### Display name
+Changing the display name updates the Home Assistant Entity Registry name override. It does not blindly change `entity_id`, so dashboards and automations are not rewritten unexpectedly.
 
-## Entity names
+### Exposure modes
+Each entity has three explicit states:
+- Auto: evaluate domain and automatic rules.
+- Force Show: expose even when a broader automatic rule would hide it.
+- Force Hide: always place it in the generated exclusion output.
 
-Renaming is performed through Home Assistant's Entity Registry. It changes the display name without requiring an external Home Assistant token or PHP endpoint. Reset removes the user-defined registry name and lets Home Assistant use the original/friendly name again.
+Effective precedence is Force Show → Force Hide → disabled domain → entity-category exclusion → keyword exclusion → included.
 
-## Alexa rule priority
+## Domain rules
+Domain rules are useful when voice assistants should never receive whole technical domains such as diagnostics. A Force Show exception can still expose a deliberate individual entity.
 
-The effective rule uses the following precedence:
+## Automatic categories and keywords
+Entity categories such as diagnostic/config and installer-defined name keywords can be excluded automatically. Use precise keywords to avoid hiding legitimate user controls.
 
-1. Force Show.
-2. Force Hide.
-3. Domain disabled.
-4. Automatic entity-category exclusion.
-5. Automatic keyword exclusion.
-6. Included.
+## Search and filters
+Use text search, domain, area, integration/platform, availability, effective Alexa state and explicit override filters. On large installations, combine filters before selecting entities for bulk actions.
 
-`Force Show` is intentionally stronger than a disabled domain so a small exception can be exposed without enabling the entire domain.
+## Bulk actions
+Select many entities and set Auto, Force Show or Force Hide in one operation. Changes regenerate the authoritative output. Review the result count before applying a broad rule.
+
+## Orphan rules
+An orphan rule points to an entity no longer present in the current registry. The tool does not silently delete it because a temporarily unavailable integration may return. Cleanup is an explicit maintenance operation.
 
 ## Generated files
+The module manages:
+- `/config/hidden_entities.yaml`
+- `/config/www/hidden_entities.yaml`
 
-Entity Control maintains these two files as identical copies:
+Both copies are generated from the same source and are expected to be byte-identical. A fresh installation creates valid empty YAML (`[]`) when necessary.
 
-```text
-/config/hidden_entities.yaml
-/config/www/hidden_entities.yaml
-```
+## File health and repair
+System Center and the module report synchronization state using metadata/hashes. Repair regenerates both copies from the stored rule model. Manual edits to generated files can be overwritten.
 
-If neither exists on a fresh installation, both are created as a valid empty YAML list (`[]`). The public `/www` copy is useful for systems that retrieve the generated list through Home Assistant's `/local/` path.
+## Import and export
+`alexa_rules.json` is a portable rules format for domain settings, per-entity overrides, automatic category exclusions and keyword exclusions. Import validates/normalizes data and preserves a safety backup before replacement where supported.
 
-## Bulk tools
+## Naming workflow
+1. Search for the entity.
+2. Confirm the device and area.
+3. Edit the display name.
+4. Confirm the new Registry name appears in Home Assistant.
+5. Set Alexa rule only when an explicit exception is needed.
+6. Review file health after bulk changes.
 
-Use multi-select for explicit entities, or keyword bulk edit when a naming convention identifies many entities. Filters include domain, Area, source integration/platform, availability and Alexa status.
-
-## Import / export
-
-`alexa_rules.json` preserves domain settings, explicit entity overrides and automatic defaults. Before a rules import, Entity Control creates a backup of the current rules.
+## Troubleshooting
+If an entity remains hidden, check explicit Force Hide, domain rules, category and keyword rules in precedence order. If file health is red, use Repair from System Center. If an entity is missing, verify its source integration is loaded before deleting its orphan rule.

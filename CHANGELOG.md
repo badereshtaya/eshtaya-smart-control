@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.0 — Intelligent Control Platform redesign
+
+- Rebuilt the first-install experience so the integration installs with zero optional cloud credentials.
+- Moved all Tuya onboarding into the Tuya dashboard with test-before-activate, edit and deactivate workflows.
+- Added a credential-safe Tuya activation state and timestamps without exposing the Client Secret to the frontend.
+- Rebuilt the unified Dashboard with the new Eshtaya Smart Control visual identity, health score, metrics, module cards and responsive layouts.
+- Adopted the new user-provided Eshtaya Smart Control logo across dashboard and integration brand assets.
+- Added structured local smart recommendations for migration, Alexa file health, unavailable entities, Multi-Way health, Smart Group health and optional Tuya activation.
+- Added safe System Center quick actions for Alexa repair, group synchronization, Tuya refresh and full managed refresh.
+- Added a sanitized downloadable System Report that excludes Tuya secrets, access tokens and raw storage/backup data.
+- Expanded System Center into the platform-level diagnostics and operational administration console.
+- Preserved and integrated the v1.2 Migration Center with the redesigned v2 shell and reports.
+- Added a comprehensive searchable in-app Documentation Center in Arabic and English.
+- Expanded repository documentation with dedicated Getting Started, Dashboard, Entity Control, Tuya, Multi-Way, Smart Groups, Commissioning, System Center, Migration, Architecture, Security/Backup and Troubleshooting guides in both languages.
+- Expanded Arabic localization throughout the unified shell and embedded Entity, Tuya and Multi-Way/Smart Group interfaces.
+- Switched the panel loader to the new versioned `smart-control-panel.js` v2 frontend.
+- Preserved config-entry compatibility with existing 1.x installations while changing the product release version to 2.0.0.
+
 ## 1.2.0 — Migration Center & operational visibility
 
 - Added a full **Migration Center** inside System Center with a visual nine-step migration timeline.

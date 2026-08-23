@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 from ..const import (
     CONF_TUYA_CLIENT_ID,
     CONF_TUYA_CLIENT_SECRET,
+    CONF_TUYA_ACTIVATED_AT,
+    CONF_TUYA_UPDATED_AT,
     CONF_TUYA_ENDPOINT,
     CONF_TUYA_REGION,
     CONF_TUYA_UID,
@@ -54,13 +57,17 @@ class TuyaManager:
         masked = ""
         if self.client_id:
             masked = self.client_id[:4] + "…" + self.client_id[-3:] if len(self.client_id) > 8 else "configured"
+        cfg = self._config()
         return {
             "configured": self.configured,
+            "activated": self.configured,
             "region": self.region,
             "endpoint": self.endpoint,
             "client_id_masked": masked,
             "uid_configured": bool(self.uid),
             "cached_devices": len(self._devices),
+            "activated_at": cfg.get(CONF_TUYA_ACTIVATED_AT),
+            "updated_at": cfg.get(CONF_TUYA_UPDATED_AT),
         }
 
     async def async_test_config(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -98,21 +105,30 @@ class TuyaManager:
         return cfg
 
     async def async_save_config(self, raw: dict[str, Any], *, test_first: bool = True) -> dict[str, Any]:
+        """Validate and activate/update Tuya without replacing unrelated config-entry data."""
         cfg = self._effective_candidate(raw)
         test = await self.async_test_config(cfg) if test_first else {"ok": True}
-        self.hass.config_entries.async_update_entry(self.entry, data=cfg, options={})
+        now = datetime.now(timezone.utc).isoformat()
+        current = dict(self.entry.data)
+        first_activation = not self.configured
+        current.update(cfg)
+        if first_activation and not current.get(CONF_TUYA_ACTIVATED_AT):
+            current[CONF_TUYA_ACTIVATED_AT] = now
+        current[CONF_TUYA_UPDATED_AT] = now
+        self.hass.config_entries.async_update_entry(self.entry, data=current)
         self._reload_config()
-        return {**test, "status": self.public_status()}
+        return {**test, "first_activation": first_activation, "status": self.public_status()}
 
     async def async_clear_config(self) -> dict[str, Any]:
-        data = {
-            CONF_TUYA_REGION: "eu",
-            CONF_TUYA_ENDPOINT: TUYA_REGION_ENDPOINTS["eu"],
-            CONF_TUYA_CLIENT_ID: "",
-            CONF_TUYA_CLIENT_SECRET: "",
-            CONF_TUYA_UID: "",
-        }
-        self.hass.config_entries.async_update_entry(self.entry, data=data, options={})
+        """Deactivate only the optional Tuya module and preserve the unified integration entry."""
+        data = dict(self.entry.data)
+        for key in (
+            CONF_TUYA_REGION, CONF_TUYA_ENDPOINT, CONF_TUYA_CLIENT_ID,
+            CONF_TUYA_CLIENT_SECRET, CONF_TUYA_UID, CONF_TUYA_ACTIVATED_AT,
+            CONF_TUYA_UPDATED_AT,
+        ):
+            data.pop(key, None)
+        self.hass.config_entries.async_update_entry(self.entry, data=data)
         self._reload_config()
         self._devices = []
         return self.public_status()
