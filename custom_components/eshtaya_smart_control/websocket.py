@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from .const import DATA_ENTITY_MANAGER, DATA_TUYA_MANAGER, DOMAIN, VERSION
+from .const import DATA_ENTITY_MANAGER, DATA_MIGRATION, DATA_TUYA_MANAGER, DOMAIN, VERSION
 from .multiway.const import DATA_RUNTIME
 
 
@@ -23,6 +23,7 @@ async def websocket_overview(hass: HomeAssistant, connection, msg: dict[str, Any
     data = hass.data.get(DOMAIN, {})
     entity = data.get(DATA_ENTITY_MANAGER)
     tuya = data.get(DATA_TUYA_MANAGER)
+    migration = data.get(DATA_MIGRATION)
     runtime = data.get(DATA_RUNTIME) or {}
 
     entity_stats = {}
@@ -41,6 +42,11 @@ async def websocket_overview(hass: HomeAssistant, connection, msg: dict[str, Any
         "entity_manager": bool(hass.config_entries.async_entries("eshtaya_entity_manager")),
         "multiway": bool(hass.config_entries.async_entries("eshtaya_multiway")),
     }
+    migration_status = (
+        await migration.async_public_status()
+        if migration is not None
+        else {"phase": "not_started", "completed": False, "legacy_found": False}
+    )
     connection.send_result(
         msg["id"],
         {
@@ -49,5 +55,6 @@ async def websocket_overview(hass: HomeAssistant, connection, msg: dict[str, Any
             "tuya": tuya.public_status() if tuya else {"configured": False},
             "multiway": {"groups": multi_groups, "smart_groups": smart_groups},
             "legacy": legacy,
+            "migration": migration_status,
         },
     )
