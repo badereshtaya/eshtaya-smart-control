@@ -8,15 +8,12 @@ on:
     paths:
       - '.github/workflows/v2-bootstrap.yml'
       - '.v2-bootstrap/**'
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
-  recover-v2:
+  import-v2:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,20 +21,121 @@ jobs:
           ref: v2.0.0-major-update
           fetch-depth: 0
 
-      - name: Recover complete files from partial v2 overlay
+      - name: Rebuild and verify v2 source patch
         shell: bash
         run: |
-          set -u
-          mkdir -p /tmp/v2-recovered
-          cat .v2-bootstrap/text_* | tr -d '\r\n ' | base64 --decode > /tmp/v2-text-overlay.tar.gz || true
-          tar -xzf /tmp/v2-text-overlay.tar.gz -C /tmp/v2-recovered || true
-          echo 'Recovered files:'
-          find /tmp/v2-recovered -type f -printf '%P %s bytes\n' | sort
-          tar -czf /tmp/v2-recovered-files.tar.gz -C /tmp/v2-recovered .
+          set -euo pipefail
+          cat \
+            .v2-bootstrap/v2x_00 \
+            .v2-bootstrap/v2x_01 \
+            .v2-bootstrap/v2x_02 \
+            .v2-bootstrap/v2x_03 \
+            .v2-bootstrap/v2x_04 \
+            .v2-bootstrap/v2x_05 \
+            .v2-bootstrap/v2x_06 \
+            .v2-bootstrap/tail_00 \
+            .v2-bootstrap/tail_01_00 \
+            .v2-bootstrap/tail_01_01 \
+            .v2-bootstrap/tail_01_02 \
+            .v2-bootstrap/tail_01_03 \
+            .v2-bootstrap/tail_01_04 \
+            .v2-bootstrap/tail_01_05 \
+            .v2-bootstrap/tail_01_06 \
+            .v2-bootstrap/tail_01_07 \
+            .v2-bootstrap/tail_01_08 \
+            .v2-bootstrap/tail_01_09 \
+            .v2-bootstrap/tail_01_10 \
+            .v2-bootstrap/tail_01_11 \
+            .v2-bootstrap/tail_01_12 \
+            .v2-bootstrap/tail_01_13 \
+            .v2-bootstrap/tail_01_14 \
+            .v2-bootstrap/tail_01_15 \
+            .v2-bootstrap/tail_01_16 \
+            .v2-bootstrap/tail_01_17 \
+            .v2-bootstrap/tail_01_18 \
+            .v2-bootstrap/tail_01_19 \
+            .v2-bootstrap/tail_02 \
+            .v2-bootstrap/tail_03 \
+            .v2-bootstrap/tail_04 \
+            .v2-bootstrap/tail_05 \
+            .v2-bootstrap/tail_06 \
+            .v2-bootstrap/tail_07 \
+            .v2-bootstrap/tail_08 \
+            .v2-bootstrap/tail_09 \
+            .v2-bootstrap/tail_10 \
+            .v2-bootstrap/tail_11 \
+            | tr -d '\r\n ' > /tmp/v2.patch.b64
+          base64 --decode /tmp/v2.patch.b64 > /tmp/v2.patch.xz
+          echo 'd8f9f1f463a528d738fe99c9ba089647dd1f1c1d9dd7f2f22ebe74d872ed250e  /tmp/v2.patch.xz' | sha256sum -c -
+          xz -dc /tmp/v2.patch.xz > /tmp/v2.patch
+          git apply --check /tmp/v2.patch
+          git apply /tmp/v2.patch
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: v2-recovered-source
-          path: /tmp/v2-recovered-files.tar.gz
-          if-no-files-found: error
-          retention-days: 2
+      - name: Verify and generate v2 branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '9dada4b07bbe5e17df5b172f453fcb5c3f94affd314bc9d51417caa1e1938043  .v2-bootstrap/logo.webp' | sha256sum -c -
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          src = Image.open('.v2-bootstrap/logo.webp').convert('RGB')
+          brand = Path('custom_components/eshtaya_smart_control/brand')
+          assets = Path('custom_components/eshtaya_smart_control/frontend/assets')
+          brand.mkdir(parents=True, exist_ok=True)
+          assets.mkdir(parents=True, exist_ok=True)
+
+          # Preserve the supplied artwork as the canonical dashboard logo.
+          src.save(brand / 'source_logo.png', 'PNG', optimize=True)
+          src.save(assets / 'logo.png', 'PNG', optimize=True)
+
+          def square_logo(size: int):
+              bg = Image.new('RGB', (size, size), (31, 32, 43))
+              work = src.copy()
+              max_side = int(size * 0.88)
+              work.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+              x = (size - work.width) // 2
+              y = (size - work.height) // 2
+              bg.paste(work, (x, y))
+              return bg
+
+          img256 = square_logo(256)
+          img512 = square_logo(512)
+          for name in ('icon.png', 'logo.png', 'dark_icon.png', 'dark_logo.png'):
+              img256.save(brand / name, 'PNG', optimize=True)
+          for name in ('icon@2x.png', 'logo@2x.png', 'dark_icon@2x.png', 'dark_logo@2x.png'):
+              img512.save(brand / name, 'PNG', optimize=True)
+          PY
+
+      - name: Validate v2 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q custom_components/eshtaya_smart_control
+          find custom_components/eshtaya_smart_control/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('custom_components/eshtaya_smart_control').rglob('*.json'):
+              json.loads(path.read_text(encoding='utf-8'))
+          manifest = json.loads(Path('custom_components/eshtaya_smart_control/manifest.json').read_text(encoding='utf-8'))
+          assert manifest.get('version') == '2.0.0', manifest
+          print('v2 JSON + manifest validation passed')
+          PY
+
+      - name: Commit Eshtaya Smart Control v2.0.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git reset -- .github/workflows/v2-bootstrap.yml .v2-bootstrap
+          if git diff --cached --quiet; then
+            echo 'No v2 source changes to commit.'
+            exit 0
+          fi
+          git commit -m 'feat: Eshtaya Smart Control v2.0.0'
+          git push origin HEAD:v2.0.0-major-update
