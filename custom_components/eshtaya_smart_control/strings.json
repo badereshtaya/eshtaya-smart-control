@@ -1,0 +1,275 @@
+{
+  "title": "Eshtaya Smart Control",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Eshtaya Smart Control",
+        "description": "Install the unified Eshtaya Smart Control platform. Tuya Cloud credentials are optional and can also be configured later from the Tuya Entity Control tool.",
+        "data": {
+          "tuya_region": "Tuya region",
+          "tuya_endpoint": "Custom Tuya endpoint",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        },
+        "data_description": {
+          "tuya_region": "Choose the Tuya Cloud data center used by this project.",
+          "tuya_endpoint": "Used only when Custom endpoint is selected.",
+          "tuya_client_id": "Access ID / Client ID from the Tuya Cloud project.",
+          "tuya_client_secret": "Access Secret / Client Secret. Stored in the Home Assistant config entry.",
+          "tuya_uid": "Tuya user UID whose devices should be managed."
+        }
+      },
+      "init": {
+        "title": "Eshtaya Smart Control options",
+        "description": "Update the optional Tuya Cloud account. Leave Client Secret blank to keep the current secret.",
+        "data": {
+          "tuya_region": "Tuya region",
+          "tuya_endpoint": "Custom Tuya endpoint",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Eshtaya Smart Control",
+        "description": "Update the optional Tuya Cloud connection. The current Client Secret is kept when the password field is left blank.",
+        "data": {
+          "tuya_region": "Tuya data center",
+          "tuya_endpoint": "Custom Tuya endpoint",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        },
+        "data_description": {
+          "tuya_region": "Choose the Tuya Cloud data center used by this project.",
+          "tuya_endpoint": "Used only when Custom endpoint is selected.",
+          "tuya_client_id": "Access ID / Client ID from the Tuya Cloud project.",
+          "tuya_client_secret": "Access Secret / Client Secret. Stored in the Home Assistant config entry.",
+          "tuya_uid": "Tuya user UID whose devices should be managed."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Eshtaya Smart Control is already configured.",
+      "reconfigure_successful": "Eshtaya Smart Control was reconfigured successfully."
+    },
+    "error": {
+      "incomplete_tuya": "To configure Tuya, Client ID, Client Secret and UID are all required. Leave all three blank to skip Tuya setup.",
+      "cannot_connect": "Could not validate the Tuya Cloud account. Check the data center, Client ID, Client Secret, UID and project permissions."
+    }
+  },
+  "entity": {
+    "light": {
+      "group_control": {
+        "name": "Control"
+      },
+      "smart_group_control": {
+        "name": "Group control"
+      }
+    },
+    "switch": {
+      "group_control": {
+        "name": "Control"
+      },
+      "group_enabled": {
+        "name": "Synchronization"
+      },
+      "smart_group_control": {
+        "name": "Group control"
+      },
+      "smart_group_enabled": {
+        "name": "Group enabled"
+      }
+    },
+    "sensor": {
+      "health": {
+        "name": "Health"
+      },
+      "last_source": {
+        "name": "Last source"
+      },
+      "last_latency": {
+        "name": "Last latency"
+      },
+      "smart_group_health": {
+        "name": "Group health"
+      },
+      "smart_group_quality": {
+        "name": "Quality score"
+      },
+      "smart_group_last_source": {
+        "name": "Last source"
+      },
+      "smart_group_latency": {
+        "name": "Last latency"
+      }
+    },
+    "binary_sensor": {
+      "in_sync": {
+        "name": "In sync"
+      },
+      "smart_group_healthy": {
+        "name": "Healthy"
+      }
+    },
+    "button": {
+      "sync_now": {
+        "name": "Sync now"
+      },
+      "smart_group_sync": {
+        "name": "Sync now"
+      }
+    }
+  },
+  "issues": {
+    "missing_output": {
+      "title": "Multi-way output entity is missing",
+      "description": "The output entity {entity} used by group {group} no longer exists. Open Multi-Way Control and replace the output entity or restore the original entity."
+    },
+    "missing_controller": {
+      "title": "Multi-way controller entity is missing",
+      "description": "The controller entity {entity} used by group {group} no longer exists. Open Multi-Way Control and replace or remove that controller."
+    },
+    "output_unresponsive": {
+      "title": "Multi-way output is not confirming commands",
+      "description": "The physical output {entity} in group {group} has repeatedly failed to confirm commands. Check the device/integration connection, then use Sync Now after it is healthy."
+    },
+    "smart_group_fault": {
+      "title": "Smart Group synchronization problem",
+      "description": "Smart Group {group} has a synchronization problem: {error}"
+    }
+  },
+  "selector": {
+    "group_state": {
+      "options": {
+        "on": "On",
+        "off": "Off"
+      }
+    },
+    "tuya_region": {
+      "options": {
+        "eu": "Central Europe",
+        "eu_west": "Western Europe",
+        "us": "Western America",
+        "us_east": "Eastern America",
+        "cn": "China",
+        "in": "India",
+        "sg": "Singapore",
+        "custom": "Custom endpoint"
+      }
+    }
+  },
+  "services": {
+    "sync_group": {
+      "name": "Sync group",
+      "description": "Reconcile one multi-way group using the physical output as authority.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal group ID shown in the management panel and virtual entity attributes."
+        }
+      }
+    },
+    "sync_all": {
+      "name": "Sync all groups",
+      "description": "Reconcile every enabled multi-way group."
+    },
+    "enable_group": {
+      "name": "Enable group",
+      "description": "Enable synchronization for a group.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal group ID."
+        }
+      }
+    },
+    "disable_group": {
+      "name": "Disable group",
+      "description": "Disable synchronization without deleting the group.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal group ID."
+        }
+      }
+    },
+    "set_group_state": {
+      "name": "Set group state",
+      "description": "Change the physical output and synchronized followers through the transaction engine.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal group ID."
+        },
+        "state": {
+          "name": "State",
+          "description": "Desired group state."
+        }
+      }
+    },
+    "test_group": {
+      "name": "Test group",
+      "description": "Return a non-destructive readiness report without switching the physical load.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal group ID."
+        }
+      }
+    },
+    "set_smart_group_state": {
+      "name": "Set Smart Group state",
+      "description": "Turn all Smart Group members on or off through the protected engine.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal Smart Group ID."
+        },
+        "state": {
+          "name": "State",
+          "description": "Desired on/off state."
+        }
+      }
+    },
+    "sync_smart_group": {
+      "name": "Sync Smart Group",
+      "description": "Reconcile all Smart Group members.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal Smart Group ID."
+        }
+      }
+    },
+    "test_smart_group": {
+      "name": "Test Smart Group",
+      "description": "Return a non-destructive diagnostic report.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal Smart Group ID."
+        }
+      }
+    },
+    "run_smart_group": {
+      "name": "Run Action Group",
+      "description": "Run every enabled member in a scene, script, or automation Action Group.",
+      "fields": {
+        "group_id": {
+          "name": "Group ID",
+          "description": "Internal Action Group ID."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Eshtaya Multi-Way Control is not loaded."
+    },
+    "group_error": {
+      "message": "Multi-way group operation failed: {error}"
+    }
+  }
+}

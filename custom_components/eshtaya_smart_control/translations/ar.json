@@ -1,0 +1,275 @@
+{
+  "title": "Eshtaya Smart Control",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Eshtaya Smart Control",
+        "description": "تثبيت منصة Eshtaya Smart Control الشاملة. بيانات Tuya Cloud اختيارية ويمكن إعدادها لاحقاً من أداة Tuya Entity Control.",
+        "data": {
+          "tuya_region": "منطقة Tuya",
+          "tuya_endpoint": "رابط Tuya المخصص",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        },
+        "data_description": {
+          "tuya_region": "اختر مركز بيانات Tuya Cloud المستخدم لهذا المشروع.",
+          "tuya_endpoint": "يستخدم فقط عند اختيار رابط مخصص.",
+          "tuya_client_id": "Access ID / Client ID من مشروع Tuya Cloud.",
+          "tuya_client_secret": "Access Secret / Client Secret ويتم حفظه داخل Config Entry في Home Assistant.",
+          "tuya_uid": "UID لمستخدم Tuya الذي تريد إدارة أجهزته."
+        }
+      },
+      "init": {
+        "title": "إعدادات Eshtaya Smart Control",
+        "description": "تعديل حساب Tuya Cloud الاختياري. اترك Client Secret فارغاً للاحتفاظ بالقيمة الحالية.",
+        "data": {
+          "tuya_region": "منطقة Tuya",
+          "tuya_endpoint": "رابط Tuya المخصص",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        }
+      },
+      "reconfigure": {
+        "title": "إعادة إعداد Eshtaya Smart Control",
+        "description": "تعديل اتصال Tuya Cloud الاختياري. إذا تركت Client Secret فارغاً يتم الاحتفاظ بالقيمة الحالية.",
+        "data": {
+          "tuya_region": "مركز بيانات Tuya",
+          "tuya_endpoint": "رابط Tuya المخصص",
+          "tuya_client_id": "Tuya Client ID",
+          "tuya_client_secret": "Tuya Client Secret",
+          "tuya_uid": "Tuya UID"
+        },
+        "data_description": {
+          "tuya_region": "اختر مركز بيانات Tuya Cloud المستخدم لهذا المشروع.",
+          "tuya_endpoint": "يستخدم فقط عند اختيار رابط مخصص.",
+          "tuya_client_id": "Access ID / Client ID من مشروع Tuya Cloud.",
+          "tuya_client_secret": "Access Secret / Client Secret ويتم حفظه داخل Config Entry في Home Assistant.",
+          "tuya_uid": "UID لمستخدم Tuya الذي تريد إدارة أجهزته."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "تم إعداد Eshtaya Smart Control مسبقاً.",
+      "reconfigure_successful": "تم تحديث إعدادات Eshtaya Smart Control بنجاح."
+    },
+    "error": {
+      "incomplete_tuya": "لإعداد Tuya يجب إدخال Client ID وClient Secret وUID جميعها. اتركها كلها فارغة لتخطي إعداد Tuya.",
+      "cannot_connect": "تعذر التحقق من حساب Tuya Cloud. تأكد من مركز البيانات وClient ID وClient Secret وUID وصلاحيات المشروع."
+    }
+  },
+  "entity": {
+    "light": {
+      "group_control": {
+        "name": "التحكم"
+      },
+      "smart_group_control": {
+        "name": "تحكم الجروب"
+      }
+    },
+    "switch": {
+      "group_control": {
+        "name": "التحكم"
+      },
+      "group_enabled": {
+        "name": "المزامنة"
+      },
+      "smart_group_control": {
+        "name": "تحكم الجروب"
+      },
+      "smart_group_enabled": {
+        "name": "تفعيل الجروب"
+      }
+    },
+    "sensor": {
+      "health": {
+        "name": "حالة المجموعة"
+      },
+      "last_source": {
+        "name": "آخر زر"
+      },
+      "last_latency": {
+        "name": "آخر زمن استجابة"
+      },
+      "smart_group_health": {
+        "name": "حالة الجروب"
+      },
+      "smart_group_quality": {
+        "name": "جودة الجروب"
+      },
+      "smart_group_last_source": {
+        "name": "آخر مصدر"
+      },
+      "smart_group_latency": {
+        "name": "آخر زمن استجابة"
+      }
+    },
+    "binary_sensor": {
+      "in_sync": {
+        "name": "متزامن"
+      },
+      "smart_group_healthy": {
+        "name": "الجروب سليم"
+      }
+    },
+    "button": {
+      "sync_now": {
+        "name": "مزامنة الآن"
+      },
+      "smart_group_sync": {
+        "name": "مزامنة الآن"
+      }
+    }
+  },
+  "issues": {
+    "missing_output": {
+      "title": "خرج مجموعة الفكسل مفقود",
+      "description": "الكيان {entity} المستخدم كخرج فعلي في المجموعة {group} لم يعد موجوداً. افتح Multi-Way Control واستبدله أو أعد الكيان الأصلي."
+    },
+    "missing_controller": {
+      "title": "زر فرعي في مجموعة الفكسل مفقود",
+      "description": "الكيان {entity} المستخدم كزر تحكم في المجموعة {group} لم يعد موجوداً. افتح Multi-Way Control واستبدله أو احذفه من المجموعة."
+    },
+    "output_unresponsive": {
+      "title": "الخرج الفعلي لا يؤكد الأوامر",
+      "description": "الخرج {entity} في المجموعة {group} فشل عدة مرات في تأكيد الأوامر. افحص اتصال الجهاز ثم استخدم مزامنة الآن بعد عودته للعمل."
+    },
+    "smart_group_fault": {
+      "title": "مشكلة في Smart Group",
+      "description": "الجروب {group} لديه مشكلة بالمزامنة: {error}"
+    }
+  },
+  "selector": {
+    "group_state": {
+      "options": {
+        "on": "تشغيل",
+        "off": "إيقاف"
+      }
+    },
+    "tuya_region": {
+      "options": {
+        "eu": "أوروبا الوسطى",
+        "eu_west": "أوروبا الغربية",
+        "us": "أمريكا الغربية",
+        "us_east": "أمريكا الشرقية",
+        "cn": "الصين",
+        "in": "الهند",
+        "sg": "سنغافورة",
+        "custom": "رابط مخصص"
+      }
+    }
+  },
+  "services": {
+    "sync_group": {
+      "name": "مزامنة مجموعة",
+      "description": "إعادة مزامنة مجموعة فكسل واحدة واعتماد الخرج الفعلي كمرجع.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف المجموعة",
+          "description": "المعرّف الداخلي الظاهر في لوحة الإدارة وخصائص الكيان الافتراضي."
+        }
+      }
+    },
+    "sync_all": {
+      "name": "مزامنة كل المجموعات",
+      "description": "إعادة مزامنة جميع مجموعات الفكسل المفعّلة."
+    },
+    "enable_group": {
+      "name": "تفعيل مجموعة",
+      "description": "تفعيل المزامنة لمجموعة فكسل.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف المجموعة",
+          "description": "المعرّف الداخلي للمجموعة."
+        }
+      }
+    },
+    "disable_group": {
+      "name": "تعطيل مجموعة",
+      "description": "تعطيل المزامنة بدون حذف إعدادات المجموعة.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف المجموعة",
+          "description": "المعرّف الداخلي للمجموعة."
+        }
+      }
+    },
+    "set_group_state": {
+      "name": "تغيير حالة المجموعة",
+      "description": "تغيير الخرج الفعلي وباقي الأزرار من خلال محرك المعاملات الآمن.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف المجموعة",
+          "description": "المعرّف الداخلي للمجموعة."
+        },
+        "state": {
+          "name": "الحالة",
+          "description": "الحالة المطلوبة للمجموعة."
+        }
+      }
+    },
+    "test_group": {
+      "name": "فحص المجموعة",
+      "description": "إرجاع تقرير جاهزية بدون تشغيل أو إطفاء الحمل الفعلي.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف المجموعة",
+          "description": "المعرّف الداخلي للمجموعة."
+        }
+      }
+    },
+    "set_smart_group_state": {
+      "name": "تغيير حالة Smart Group",
+      "description": "تشغيل أو إطفاء جميع أعضاء Smart Group من خلال المحرك الآمن.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف الجروب",
+          "description": "المعرّف الداخلي."
+        },
+        "state": {
+          "name": "الحالة",
+          "description": "تشغيل أو إيقاف."
+        }
+      }
+    },
+    "sync_smart_group": {
+      "name": "مزامنة Smart Group",
+      "description": "إعادة توحيد حالة أعضاء Smart Group.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف الجروب",
+          "description": "المعرّف الداخلي."
+        }
+      }
+    },
+    "test_smart_group": {
+      "name": "فحص Smart Group",
+      "description": "إرجاع تقرير تشخيص غير هدّام للجروب.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف الجروب",
+          "description": "المعرّف الداخلي."
+        }
+      }
+    },
+    "run_smart_group": {
+      "name": "تشغيل Action Group",
+      "description": "تشغيل جميع الأعضاء المفعّلين في جروب السيناريوهات أو السكربتات أو الأوتوميشنات.",
+      "fields": {
+        "group_id": {
+          "name": "معرّف الجروب",
+          "description": "المعرّف الداخلي لـ Action Group."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "تكامل Eshtaya Multi-Way Control غير محمّل."
+    },
+    "group_error": {
+      "message": "فشلت عملية مجموعة الفكسل: {error}"
+    }
+  }
+}
