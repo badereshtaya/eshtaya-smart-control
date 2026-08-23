@@ -28,10 +28,10 @@ _SERVICE_SPECS = {
 
 
 def async_register_legacy_service_aliases(hass: HomeAssistant) -> None:
-    """Forward legacy service calls to Eshtaya Smart Control."""
+    """Replace stale legacy handlers and forward calls to Eshtaya Smart Control."""
     for service, (schema, response_mode) in _SERVICE_SPECS.items():
         if hass.services.has_service(LEGACY_DOMAIN, service):
-            continue
+            hass.services.async_remove(LEGACY_DOMAIN, service)
 
         async def _forward(call: ServiceCall, _service: str = service):
             return await hass.services.async_call(
