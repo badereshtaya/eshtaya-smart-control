@@ -82,9 +82,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat source_payload.part_* | base64 --decode > "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz"
+          cat \
+            overlay2.part_000 \
+            overlay2.part_001 \
+            source_payload.part_002 \
+            overlay2.part_003 \
+            source_payload.part_004 \
+            source_payload.part_006 \
+            overlay2.part_006 \
+            source_payload.part_007 \
+            | base64 --decode > "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz"
           tar -xzf "$RUNNER_TEMP/eshtaya-smart-control-overlay.tar.gz" -C .
-          rm -f source_payload.part_* source_payload.ready
+          rm -f source_payload.part_* overlay2.part_* source_payload.ready
           find . -type d -name '__pycache__' -prune -exec rm -rf {} +
           find . -type f -name '*.pyc' -delete
 
