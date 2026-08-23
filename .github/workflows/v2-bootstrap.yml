@@ -8,6 +8,9 @@ on:
     paths:
       - '.github/workflows/v2-bootstrap.yml'
       - '.v2-bootstrap/**'
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -45,6 +48,7 @@ jobs:
           PY
 
       - name: Commit imported v2 source
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         run: |
           set -euo pipefail
