@@ -91,13 +91,64 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
         self.state["last_updated_at"] = now
         await self._save_state()
 
+    async def _hydrate_completed_v11_state(self) -> None:
+        """Upgrade an already-completed v1.1 migration into the v1.2 timeline."""
+        self._ensure_steps()
+        if not self.state.get("completed"):
+            return
+        if self.state.get("phase") == "no_legacy" or not self.state.get("legacy_found"):
+            await self._set_step("detect", "completed", message="No legacy integrations or storage detected")
+            for step in STEP_ORDER[1:]:
+                item = self.state["steps"].get(step) or {}
+                if item.get("status") == "pending":
+                    await self._set_step(step, "skipped", message="No migration required")
+            return
+
+        expected = deepcopy(self.state.get("expected") or {})
+        default_messages = {
+            "detect": "Legacy Eshtaya integrations detected",
+            "backup": "Independent migration backup created before cutover",
+            "copy": "Legacy storage copied into the unified storage namespace where required",
+            "quiesce": "Legacy config entries disabled before the new runtime started",
+            "runtime_start": "Unified runtime started successfully",
+            "validate": "Migration validation passed",
+            "remove_legacy": "Legacy Home Assistant config entries removed after successful validation",
+            "reconcile": "New Smart Group runtime reconciled hidden-member ownership",
+        }
+        for step, message in default_messages.items():
+            item = self.state["steps"].get(step) or {}
+            if item.get("status") == "pending":
+                await self._set_step(step, "completed", message=message)
+        cleanup = self.state.get("hacs_cleanup") or {}
+        if cleanup:
+            await self.async_mark_hacs_cleanup(cleanup)
+        elif (self.state["steps"].get("hacs_cleanup") or {}).get("status") == "pending":
+            await self._set_step(
+                "hacs_cleanup",
+                "skipped",
+                message="HACS cleanup status was not recorded by the previous version",
+            )
+        self.state.setdefault(
+            "counts",
+            {"before": expected, "after_start": expected, "validated": expected},
+        )
+        self.state.setdefault(
+            "rollback",
+            {
+                "available": True,
+                "used": False,
+                "backup_store": self.state.get("backup_store"),
+            },
+        )
+        await self._save_state()
+
     async def async_prepare(self) -> dict[str, Any]:
         saved = await self._store.async_load()
         if isinstance(saved, dict):
             self.state = saved
             self._ensure_steps()
             if saved.get("completed"):
-                await self._save_state()
+                await self._hydrate_completed_v11_state()
                 return deepcopy(self.state)
 
         await self._set_step("detect", "running", message="Scanning legacy integrations and storage")
@@ -264,10 +315,10 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
         await self._set_step("hacs_cleanup", status, message=message, details=results)
 
     async def async_rollback(self, reason: str) -> dict[str, Any]:
+        phase_before = self.state.get("phase")
         state = await super().async_rollback(reason)
         self.state = state
         self._ensure_steps()
-        current = self.state.get("phase")
         for step in ("runtime_start", "validate", "remove_legacy", "reconcile"):
             item = self.state["steps"].get(step) or {}
             if item.get("status") in {"running", "pending"}:
@@ -279,7 +330,7 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
                 "used": True,
                 "reason": reason,
                 "restored_entries": len(self.state.get("restored_entries") or []),
-                "phase_before_rollback": current,
+                "phase_before_rollback": phase_before,
             }
         )
         await self._save_state()
