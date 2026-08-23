@@ -30,3 +30,31 @@ jobs:
           node-version: '22'
       - run: |
           find custom_components/eshtaya_smart_control/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
+  package:
+    needs: [hacs, hassfest, syntax]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build verified source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python -c 'import json; print(json.load(open("custom_components/eshtaya_smart_control/manifest.json"))["version"])')"
+          ARCHIVE="hacs-eshtaya-smart-control-v${VERSION}.zip"
+          zip -r "$ARCHIVE" \
+            custom_components \
+            docs \
+            README.md \
+            CHANGELOG.md \
+            SECURITY.md \
+            LICENSE \
+            hacs.json \
+            pyproject.toml \
+            -x '**/__pycache__/**' '*.pyc'
+          echo "archive=$ARCHIVE" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eshtaya-smart-control-verified
+          path: ${{ env.archive }}
+          if-no-files-found: error
+          retention-days: 14
