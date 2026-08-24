@@ -1,4 +1,4 @@
-/* Eshtaya Smart Control v2.3 Template Manager shell integration. */
+/* Eshtaya Smart Control v2.3.1 Template Manager shell integration. */
 const ESC_V23_DOMAIN="eshtaya_smart_control";
 const esc23Can=(panel,permission)=>Boolean(panel._access?.permissions?.includes(permission));
 const esc23Txt=(panel,en,ar)=>panel._lang==="ar"?ar:en;
@@ -7,13 +7,15 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(()=>queueMicrotas
   const Panel=customElements.get("eshtaya-smart-control-panel");
   if(!Panel||Panel.prototype.__eshtayaV23Applied)return;
   const p=Panel.prototype;p.__eshtayaV23Applied=true;
-  const baseLoad=p._load,baseBody=p._body,baseDashboard=p._dashboardV21||p._dashboard,baseWire=p._wireChild,baseDocs=p._docs,baseCss=p._css;
+  const baseLoad=p._load,baseBody=p._body,baseDashboard=p._dashboardV21||p._dashboard,baseWire=p._wireChild,baseDocs=p._docs,baseCss=p._css,baseClick=p._click;
 
   p._load=async function(){
     const wanted=this._view;
     await baseLoad.call(this);
     if(esc23Can(this,"template.view")){
       try{this._templateOverview=await this._hass.callWS({type:`${ESC_V23_DOMAIN}/template/snapshot`});}catch(_){this._templateOverview=null;}
+      // v2.2's legacy allowed-view map predates Template Manager. Restore the
+      // requested view after the base loader refreshes the access profile.
       if(wanted==="template")this._view="template";
     }
     this._render();
@@ -59,6 +61,26 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(()=>queueMicrotas
     baseWire.call(this);
     const child=this.shadowRoot?.querySelector("eshtaya-template-manager-panel");
     if(child&&this._hass){child.hass=this._hass;try{child.language=this._lang;}catch(_){}}
+  };
+
+  // v2.1's click guard was created before the template permission existed. Handle
+  // the new view here before delegating to that stale guard; all other views keep
+  // their existing permission checks and click behavior.
+  p._click=function(e){
+    const templateTarget=e.target.closest?.('[data-view="template"]');
+    if(templateTarget){
+      if(!esc23Can(this,"template.view")){
+        this._toast=esc23Txt(this,"This role does not have Template Manager access.","هذا الدور لا يملك صلاحية الدخول إلى إدارة الكيانات الدائمة.");
+        this._render();
+        return;
+      }
+      this._view="template";
+      this._doc=null;
+      this._render();
+      window.scrollTo?.({top:0,behavior:"smooth"});
+      return;
+    }
+    return baseClick?.call(this,e);
   };
 
   p._css=function(){return `${baseCss.call(this)}.v23TemplateModule{margin-top:12px}.v23TemplateModule .module{grid-column:span 4}.v23Docs{margin-top:12px}@media(max-width:900px){.v23TemplateModule .module{grid-column:1/-1}}`;};
