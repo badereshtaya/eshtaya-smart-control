@@ -32,7 +32,7 @@ from .multiway.startup_safe_manager import StartupSafeMultiWayManager
 from .multiway.websocket_access import async_register_websocket_commands as async_register_multiway_ws
 from .panel import async_register_panel, async_remove_panel
 from .template_manager import async_setup_services as async_setup_template_services
-from .template_manager.const import DATA_TEMPLATE_MANAGER, DATA_TEMPLATE_MIGRATION
+from .template_manager.const import DATA_TEMPLATE_MANAGER, DATA_TEMPLATE_MIGRATION, LEGACY_DOMAIN as TEMPLATE_LEGACY_DOMAIN
 from .template_manager.manager import TemplateManager
 from .template_manager.migration import LegacyTemplateMigration
 from .template_manager.store import TemplateManagerStore
@@ -86,6 +86,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_tuya_ws(hass)
     async_register_template_ws(hass)
     async_register_core_ws(hass)
+    # Register only the unified service names here. Old-domain aliases are installed
+    # after we know the standalone integration is absent or migration has completed.
     await async_setup_template_services(hass)
     return True
 
@@ -132,8 +134,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await template_manager.async_start()
         if template_migration_active:
             await template_migration.async_finalize()
-            # Replace any old service handlers left in memory by the unloaded standalone integration.
-            await async_setup_template_services(hass, replace_legacy=True)
+            await async_setup_template_services(
+                hass,
+                register_legacy=True,
+                replace_legacy=True,
+            )
+        elif not hass.config_entries.async_entries(TEMPLATE_LEGACY_DOMAIN):
+            await async_setup_template_services(hass, register_legacy=True)
 
         await async_register_panel(hass)
 
