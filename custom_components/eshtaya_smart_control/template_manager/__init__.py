@@ -42,8 +42,13 @@ def _register(hass: HomeAssistant, service_domain: str, service: str, handler, s
         hass.services.async_register(service_domain, service, handler, schema=schema)
 
 
-async def async_setup_services(hass: HomeAssistant, *, replace_legacy: bool = False) -> None:
-    """Register unified services and permanent legacy aliases."""
+async def async_setup_services(
+    hass: HomeAssistant,
+    *,
+    register_legacy: bool = False,
+    replace_legacy: bool = False,
+) -> None:
+    """Register unified services and, when safe, permanent legacy aliases."""
 
     async def scan(_call: ServiceCall) -> None:
         await _manager(hass).async_scan()
@@ -69,6 +74,9 @@ async def async_setup_services(hass: HomeAssistant, *, replace_legacy: bool = Fa
     }
     for service, (handler, schema) in unified.items():
         _register(hass, DOMAIN, service, handler, schema)
+
+    if not register_legacy:
+        return
 
     legacy = {
         "scan": (scan, None),
