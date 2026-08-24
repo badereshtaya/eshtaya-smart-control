@@ -21,10 +21,11 @@ async def async_setup_entry(
 
     @callback
     def add_entities() -> None:
+        records = [item for item in manager.store.templates() if item.get("type") == "fan"]
+        current_ids = {str(item["entity_id"]) for item in records}
+        known.intersection_update(current_ids)
         entities = []
-        for record in manager.store.templates():
-            if record.get("type") != "fan":
-                continue
+        for record in records:
             entity_id = str(record["entity_id"])
             if entity_id in known:
                 continue
