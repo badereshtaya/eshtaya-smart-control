@@ -40,16 +40,24 @@ class TemplateManager:
         await self.async_scan()
 
     def _sources_have_started(self) -> bool:
+        """Wait only for registered sources that have not populated state yet."""
         records = self.store.templates()
         if not records:
             return True
-        if self.hass.is_running:
-            return True
-        return all(
-            not str(record.get("source_entity") or "")
-            or self.hass.states.get(str(record.get("source_entity"))) is not None
-            for record in records
-        )
+        registry = er.async_get(self.hass)
+        for record in records:
+            source = str(record.get("source_entity") or "")
+            if not source:
+                continue
+            if self.hass.states.get(source) is not None:
+                continue
+            # If the source still exists in Entity Registry, its integration may simply
+            # be loading slowly. Wait within the bounded grace period. If it is absent
+            # from both state machine and registry, it is genuinely missing and there
+            # is no value in delaying startup for the full grace period.
+            if registry.async_get(source) is not None:
+                return False
+        return True
 
     def _candidate_rows(self) -> list[dict[str, Any]]:
         registry = er.async_get(self.hass)
