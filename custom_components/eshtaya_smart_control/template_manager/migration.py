@@ -51,13 +51,10 @@ class LegacyTemplateMigration:
             "packages/eshtaya_template*.yaml",
         ):
             paths.extend(path for path in config.glob(pattern) if path.exists())
-        # Deduplicate while retaining deterministic order.
         return list(dict.fromkeys(paths))
 
     async def _wait_for_legacy_runtime(self) -> None:
-        if self.hass.states.get(LEGACY_SENSOR) is not None:
-            return
-        if not self._legacy_entries:
+        if self.hass.states.get(LEGACY_SENSOR) is not None or not self._legacy_entries:
             return
         deadline = self.hass.loop.time() + LEGACY_RUNTIME_WAIT_SECONDS
         while self.hass.loop.time() < deadline:
@@ -80,17 +77,14 @@ class LegacyTemplateMigration:
             template_type = str(raw.get("type") or entity_id.split(".", 1)[0]).lower()
             if template_type not in {"light", "fan"}:
                 continue
-            records.append(
-                {
-                    "entity_id": entity_id,
-                    "source_entity": source,
-                    "type": template_type,
-                    "name": str(raw.get("name") or entity_id),
-                    # The integrated runtime owns a stable unique id. Entity IDs are preserved exactly.
-                    "unique_id": f"esc_template::{entity_id}",
-                    "legacy_unique_id": raw.get("unique_id"),
-                }
-            )
+            records.append({
+                "entity_id": entity_id,
+                "source_entity": source,
+                "type": template_type,
+                "name": str(raw.get("name") or entity_id),
+                "unique_id": f"esc_template::{entity_id}",
+                "legacy_unique_id": raw.get("unique_id"),
+            })
         return records
 
     @staticmethod
@@ -176,8 +170,6 @@ class LegacyTemplateMigration:
         await self._wait_for_legacy_runtime()
         sensor_exists = self.hass.states.get(LEGACY_SENSOR) is not None
         records = self._capture_records()
-
-        # A loaded legacy entry with no readable status is not safe to remove automatically.
         if self._legacy_entries and not sensor_exists:
             raise RuntimeError(
                 "Legacy Template Manager config entry exists but sensor.eshtaya_template_manager did not become ready; refusing cleanup"
@@ -195,7 +187,6 @@ class LegacyTemplateMigration:
         self._registry_backup = self._capture_registry(records)
         self._backup_dir = await self._backup(records, self._registry_backup)
 
-        # Stop the old engine BEFORE the new platform claims entity IDs.
         for entry in self._legacy_entries:
             self.hass.config_entries.async_update_entry(entry, disabled_by=ConfigEntryDisabler.INTEGRATION)
             unloaded = await self.hass.config_entries.async_unload(entry.entry_id)
@@ -275,7 +266,6 @@ class LegacyTemplateMigration:
         def _remove_legacy_files() -> None:
             for path in paths_to_remove:
                 try:
-                    # Never touch the backup tree or anything outside /config.
                     path.resolve().relative_to(config.resolve())
                     if backup_root and backup_root in path.parents:
                         continue
@@ -288,23 +278,33 @@ class LegacyTemplateMigration:
 
         await self.hass.async_add_executor_job(_remove_legacy_files)
         remaining = [str(path) for path in paths_to_remove if path.exists()]
-        state.update(
-            {
-                "completed": True,
-                "phase": "completed",
-                "verified": len(expected),
-                "completed_at": datetime.now(timezone.utc).isoformat(),
-                "legacy_component_removed": not remaining,
-                "remaining_legacy_paths": remaining,
-            }
-        )
+        state.update({
+            "completed": True,
+            "phase": "completed",
+            "verified": len(expected),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "legacy_component_removed": not remaining,
+            "remaining_legacy_paths": remaining,
+        })
         await self.store.async_set_migration(state)
         return state
 
     async def async_rollback(self, reason: str) -> None:
-        """Keep the backup and restore the standalone entry when verification fails."""
+        """Remove new registry ownership before restoring the standalone engine."""
         if not self._prepared:
             return
+        registry = er.async_get(self.hass)
+        # The caller should unload unified platforms first. This registry cleanup is an
+        # additional guard so the old integration cannot be assigned *_2 Entity IDs.
+        for record in self._records:
+            entity_id = str(record.get("entity_id") or "")
+            current = registry.async_get(entity_id) if entity_id else None
+            if current and current.platform == "eshtaya_smart_control":
+                registry.async_remove(entity_id)
+        sensor_entry = registry.async_get(LEGACY_SENSOR)
+        if sensor_entry and sensor_entry.platform == "eshtaya_smart_control":
+            registry.async_remove(LEGACY_SENSOR)
+
         await self.store.async_replace_all(self._previous_records)
         for entry in self._legacy_entries:
             try:
