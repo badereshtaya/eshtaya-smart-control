@@ -5,7 +5,7 @@ from typing import Final
 
 DOMAIN: Final = "eshtaya_smart_control"
 NAME: Final = "Eshtaya Smart Control"
-VERSION: Final = "2.1.0"
+VERSION: Final = "2.2.0"
 MANUFACTURER: Final = "Eshtaya Smart"
 
 DATA_ENTRY: Final = "entry"
@@ -14,9 +14,10 @@ DATA_TUYA_MANAGER: Final = "tuya_manager"
 DATA_MIGRATION: Final = "migration"
 DATA_SYSTEM: Final = "system"
 DATA_ACCESS_CONTROL: Final = "access_control"
+DATA_HA_ACCESS: Final = "ha_access"
 
 PANEL_URL: Final = "eshtaya-smart-control"
-PANEL_ELEMENT: Final = "eshtaya-smart-control-panel"
+PANEL_ELEMENT: Final = "eshtaya-smart-control-panel-v22"
 PANEL_TITLE: Final = "Eshtaya Smart Control"
 PANEL_ICON: Final = "mdi:home-automation"
 STATIC_URL: Final = "/eshtaya_smart_control_static"
