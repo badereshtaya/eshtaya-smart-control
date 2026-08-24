@@ -8,7 +8,10 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 
+from . import multiway as multiway_module
+from .access_control import AccessControlManager
 from .const import (
+    DATA_ACCESS_CONTROL,
     DATA_ENTITY_MANAGER,
     DATA_ENTRY,
     DATA_MIGRATION,
@@ -16,7 +19,9 @@ from .const import (
     DOMAIN,
 )
 from .entity_control.manager_unified import UnifiedEntityManager
-from .entity_control.websocket_v12 import async_register_websocket_commands as async_register_entity_ws
+from .entity_control.websocket_access import (
+    async_register_websocket_commands as async_register_entity_ws,
+)
 from .legacy_cleanup import async_cleanup_legacy_hacs
 from .legacy_compat import async_register_legacy_service_aliases
 from .migration_center import MigrationCenterCoordinator
@@ -25,13 +30,25 @@ from .multiway import async_setup as async_setup_multiway
 from .multiway import async_setup_entry as async_setup_multiway_entry
 from .multiway import async_unload_entry as async_unload_multiway_entry
 from .multiway.const import DATA_RUNTIME
+from .multiway.startup_safe_manager import StartupSafeMultiWayManager
+from .multiway.websocket_access import (
+    async_register_websocket_commands as async_register_multiway_ws,
+)
 from .panel import async_register_panel, async_remove_panel
 from .tuya.manager import TuyaManager
-from .tuya.websocket import async_register_websocket_commands as async_register_tuya_ws
-from .websocket import async_register_websocket_commands as async_register_core_ws
+from .tuya.websocket_access import (
+    async_register_websocket_commands as async_register_tuya_ws,
+)
+from .websocket_v21 import async_register_websocket_commands as async_register_core_ws
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+def _activate_v21_multiway_runtime() -> None:
+    """Activate v2.1 adapters without duplicating the mature Multi-Way engine."""
+    multiway_module.MultiWayManager = StartupSafeMultiWayManager
+    multiway_module.async_register_websocket_commands = async_register_multiway_ws
 
 
 def _schedule_legacy_hacs_cleanup(
@@ -63,6 +80,7 @@ def _schedule_legacy_hacs_cleanup(
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
+    _activate_v21_multiway_runtime()
     await async_setup_multiway(hass, config)
     async_register_entity_ws(hass)
     async_register_tuya_ws(hass)
@@ -74,6 +92,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the unified platform and safely migrate legacy Eshtaya integrations."""
     data = hass.data.setdefault(DOMAIN, {})
     data[DATA_ENTRY] = entry
+
+    access_manager = AccessControlManager(hass)
+    await access_manager.async_load()
+    data[DATA_ACCESS_CONTROL] = access_manager
 
     migration = MigrationCenterCoordinator(hass)
     data[DATA_MIGRATION] = migration
@@ -91,6 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data[DATA_ENTITY_MANAGER] = entity_manager
         data[DATA_TUYA_MANAGER] = TuyaManager(hass, entry)
 
+        _activate_v21_multiway_runtime()
         if not await async_setup_multiway_entry(hass, entry):
             raise RuntimeError("Multi-Way module could not be initialized")
 

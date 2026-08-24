@@ -1,20 +1,58 @@
 name: Release
+
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build HACS archive
+        with:
+          fetch-depth: 0
+
+      - name: Read integration version
+        id: version
+        shell: bash
         run: |
+          set -euo pipefail
+          VERSION="$(python -c 'import json; print(json.load(open("custom_components/eshtaya_smart_control/manifest.json"))["version"])')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build HACS archive
+        if: steps.exists.outputs.value == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
           cd custom_components/eshtaya_smart_control
           zip -r ../../eshtaya-smart-control.zip . -x '**/__pycache__/**' '*.pyc'
-      - uses: softprops/action-gh-release@v2
+
+      - name: Publish GitHub release
+        if: steps.exists.outputs.value == 'false'
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Eshtaya Smart Control ${{ steps.version.outputs.tag }}
           files: eshtaya-smart-control.zip
           generate_release_notes: true

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.1.0 — Access Control, startup safety & in-app documentation
+
+- Added a backend-enforced **Access Control Center** built on existing Home Assistant users.
+- Added built-in roles: No Access, Viewer, Operator, Technician and Platform Manager, plus custom roles.
+- Added granular permissions for Dashboard, Entity Control, Tuya view/control/configuration, Multi-Way view/control/manage, Documentation, System actions/reports and Access administration.
+- Added per-user Allow/Deny overrides, optional temporary expiration and a persistent audit log.
+- Home Assistant administrators always retain full Eshtaya Smart Control access and cannot be restricted by local role rules.
+- Replaced admin-only module WebSocket registration with permission-aware backend enforcement for Entity Control, Tuya and Multi-Way.
+- Added permission-aware dashboard/module filtering so restricted users do not receive hidden module metrics in the overview payload.
+- Added a permission-aware Control Hub frontend and Access Control UI for assigning users, roles, overrides and expiry.
+- Fixed Documentation Center 404 behavior by serving packaged bilingual documentation through authenticated WebSocket APIs instead of relying on a static `/docs` path.
+- Added the Access Control guide to the packaged Arabic and English documentation set.
+- Added a startup-safe Multi-Way manager that checks both the Home Assistant state machine and Entity Registry before declaring entities missing.
+- Suppressed false `missing_output` / `missing_controller` Repair issues during Multi-Way startup protection and re-evaluated repairs after startup reconciliation.
+- Preserved the mature Multi-Way engine and storage format while activating the v2.1 startup-safety adapter.
+- Added a versioned v2.1 frontend entrypoint so browser cache does not keep the v2.0 Control Hub after upgrade.
+
 ## 2.0.0 — Intelligent Control Platform redesign
 
 - Rebuilt the first-install experience so the integration installs with zero optional cloud credentials.
