@@ -39,14 +39,14 @@ from .tuya.manager import TuyaManager
 from .tuya.websocket_access import (
     async_register_websocket_commands as async_register_tuya_ws,
 )
-from .websocket_v21 import async_register_websocket_commands as async_register_core_ws
+from .websocket_v22 import async_register_websocket_commands as async_register_core_ws
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 def _activate_v21_multiway_runtime() -> None:
-    """Activate v2.1 adapters without duplicating the mature Multi-Way engine."""
+    """Activate startup-safe and permission-aware Multi-Way adapters."""
     multiway_module.MultiWayManager = StartupSafeMultiWayManager
     multiway_module.async_register_websocket_commands = async_register_multiway_ws
 
@@ -130,8 +130,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
             await migration.async_finalize(runtime)
 
-        # Once the old Multi-Way config entry is gone, preserve old service names
-        # so existing scripts and automations keep working during the transition.
         if not hass.config_entries.async_entries("eshtaya_multiway"):
             async_register_legacy_service_aliases(hass)
 
