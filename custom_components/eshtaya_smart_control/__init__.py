@@ -110,14 +110,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await template_store.async_load()
     template_migration = LegacyTemplateMigration(hass, template_store)
     data[DATA_TEMPLATE_MIGRATION] = template_migration
-    template_migration_state = await template_migration.async_prepare()
-    template_migration_active = bool(
-        template_migration_state.get("legacy_found") and not template_migration_state.get("completed")
-    )
-    template_manager = TemplateManager(hass, template_store)
-    data[DATA_TEMPLATE_MANAGER] = template_manager
+    template_migration_active = False
 
     try:
+        template_migration_state = await template_migration.async_prepare()
+        template_migration_active = bool(
+            template_migration_state.get("legacy_found") and not template_migration_state.get("completed")
+        )
+        template_manager = TemplateManager(hass, template_store)
+        data[DATA_TEMPLATE_MANAGER] = template_manager
+
         entity_manager = UnifiedEntityManager(hass)
         await entity_manager.async_initialize()
         data[DATA_ENTITY_MANAGER] = entity_manager
@@ -130,6 +132,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await template_manager.async_start()
         if template_migration_active:
             await template_migration.async_finalize()
+            # Replace any old service handlers left in memory by the unloaded standalone integration.
+            await async_setup_template_services(hass, replace_legacy=True)
 
         await async_register_panel(hass)
 
@@ -160,11 +164,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(entry.add_update_listener(_entry_updated))
         return True
     except Exception as err:
-        if template_migration_active:
-            try:
-                await template_migration.async_rollback(str(err))
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Template Manager migration rollback failed")
+        try:
+            await template_migration.async_rollback(str(err))
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Template Manager migration rollback failed")
         if migration_active:
             try:
                 await migration.async_rollback(str(err))
