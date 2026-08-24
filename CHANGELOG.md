@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3.0 — Integrated Template Manager & zero-duplicate migration
+
+- Integrated the former standalone **Eshtaya Template Manager** as a first-class module inside the unified Eshtaya Smart Control Control Hub.
+- Added native permanent Light/Fan wrappers backed by physical Tuya switch entities, including live source-state tracking and source re-linking.
+- Added Available, Managed and Missing workflows with search, create, edit, delete and ranked replacement-source suggestions.
+- Added `template.view` and `template.manage` backend-enforced Eshtaya permissions.
+- Added native `eshtaya_smart_control.template_*` services and preserved `eshtaya_template_manager.*` compatibility aliases after migration.
+- Preserved the compatibility entity `sensor.eshtaya_template_manager`, now owned by Eshtaya Smart Control after successful migration.
+- Added transactional automatic migration from the standalone `eshtaya_template_manager` method during update/reinstall.
+- Migration waits for the old runtime when necessary, reads its live managed mappings, compares the readable count with the legacy reported count, and refuses destructive cleanup when the old state cannot be proven complete.
+- Added rollback backups under `/config/eshtaya_smart_control_backups/template_manager_<timestamp>/`, including migration metadata, Entity Registry metadata and known legacy component/storage/package files.
+- The old runtime is disabled and unloaded **before** the unified runtime claims the permanent Entity IDs, preventing duplicate control engines.
+- Migration verifies every permanent Entity ID and its unified integration ownership before deleting the old config entry or files.
+- Restores preserved user-facing Entity Registry metadata such as name, icon, area and labels where available.
+- Cleans known standalone Template Manager files and its HACS repository only after successful verification; the rollback backup is retained.
+- Added duplicate-safe rollback that removes unified registry ownership before attempting to restore the old integration.
+- Added registry-aware startup grace so slow Tuya loading does not create false Missing results, while genuinely deleted sources do not unnecessarily delay startup.
+- Added a complete Arabic/English Template Manager operating and migration guide inside Documentation Center.
+- Bumped the integration and HACS release version to 2.3.0.
+
 ## 2.2.0 — Runtime resilience, Home Assistant system access & full operating manual
 
 - Fixed intermittent first-load failures that could leave Entity/Alexa, Tuya or Multi-Way/Smart Groups mounted without data after a transient WebSocket disconnect or startup race.
