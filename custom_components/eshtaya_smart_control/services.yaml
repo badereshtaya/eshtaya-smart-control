@@ -78,3 +78,71 @@ run_smart_group:
       required: true
       selector:
         text:
+
+template_scan:
+
+template_create:
+  fields:
+    source_entity:
+      required: true
+      selector:
+        entity:
+          domain: switch
+    template_type:
+      required: true
+      selector:
+        select:
+          options:
+            - light
+            - fan
+    name:
+      required: true
+      selector:
+        text:
+    entity_id:
+      required: true
+      selector:
+        text:
+
+template_edit:
+  fields:
+    managed_entity:
+      required: true
+      selector:
+        entity:
+          domain:
+            - light
+            - fan
+    name:
+      required: true
+      selector:
+        text:
+    entity_id:
+      required: true
+      selector:
+        text:
+
+template_delete:
+  fields:
+    managed_entity:
+      required: true
+      selector:
+        entity:
+          domain:
+            - light
+            - fan
+
+template_relink:
+  fields:
+    managed_entity:
+      required: true
+      selector:
+        entity:
+          domain:
+            - light
+            - fan
+    source_entity:
+      required: true
+      selector:
+        entity:
+          domain: switch
