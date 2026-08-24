@@ -86,8 +86,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_tuya_ws(hass)
     async_register_template_ws(hass)
     async_register_core_ws(hass)
-    # Register only the unified service names here. Old-domain aliases are installed
-    # after we know the standalone integration is absent or migration has completed.
     await async_setup_template_services(hass)
     return True
 
@@ -171,6 +169,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(entry.add_update_listener(_entry_updated))
         return True
     except Exception as err:
+        # If the unified platforms already started, unload them before restoring the
+        # standalone Template Manager. This prevents old Entity IDs from returning as *_2.
+        if data.get(DATA_RUNTIME):
+            try:
+                await async_unload_multiway_entry(hass, entry)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Could not unload unified platforms before rollback")
         try:
             await template_migration.async_rollback(str(err))
         except Exception:  # noqa: BLE001
