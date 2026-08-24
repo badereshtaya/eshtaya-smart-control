@@ -35,12 +35,14 @@ def _manager(hass: HomeAssistant):
     return manager
 
 
-def _register_if_missing(hass: HomeAssistant, service_domain: str, service: str, handler, schema=None) -> None:
+def _register(hass: HomeAssistant, service_domain: str, service: str, handler, schema=None, *, replace=False) -> None:
+    if replace and hass.services.has_service(service_domain, service):
+        hass.services.async_remove(service_domain, service)
     if not hass.services.has_service(service_domain, service):
         hass.services.async_register(service_domain, service, handler, schema=schema)
 
 
-async def async_setup_services(hass: HomeAssistant) -> None:
+async def async_setup_services(hass: HomeAssistant, *, replace_legacy: bool = False) -> None:
     """Register unified services and permanent legacy aliases."""
 
     async def scan(_call: ServiceCall) -> None:
@@ -66,9 +68,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         "template_relink": (relink, RELINK_SCHEMA),
     }
     for service, (handler, schema) in unified.items():
-        _register_if_missing(hass, DOMAIN, service, handler, schema)
+        _register(hass, DOMAIN, service, handler, schema)
 
-    # Existing automations/scripts keep working after the standalone integration is removed.
     legacy = {
         "scan": (scan, None),
         "create_template": (create_template, CREATE_SCHEMA),
@@ -77,4 +78,11 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         "relink": (relink, RELINK_SCHEMA),
     }
     for service, (handler, schema) in legacy.items():
-        _register_if_missing(hass, LEGACY_DOMAIN, service, handler, schema)
+        _register(
+            hass,
+            LEGACY_DOMAIN,
+            service,
+            handler,
+            schema,
+            replace=replace_legacy,
+        )
