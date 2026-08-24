@@ -5,12 +5,32 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .const import LEGACY_SENSOR
+from .const import LEGACY_DOMAIN, LEGACY_SENSOR
 from .migration import LegacyTemplateMigration as _BaseLegacyTemplateMigration
 
 
 class LegacyTemplateMigration(_BaseLegacyTemplateMigration):
     """Harden migration across YAML runtimes and restart-staged cutovers."""
+
+    def _legacy_paths(self) -> list[Path]:
+        """Return only legacy paths that are safe to remove automatically.
+
+        The base migrator intentionally recognizes several broad historical naming
+        patterns for discovery. v2.3.1 narrows destructive cleanup to exact generated
+        files and paths explicitly owned by the old integration domain so an unrelated
+        user package with a similar name is never deleted automatically.
+        """
+        config = self.config_root
+        safe: list[Path] = [
+            config / "custom_components" / LEGACY_DOMAIN,
+            config / LEGACY_DOMAIN,
+            config / "www" / "eshtaya-template-manager.js",
+            config / "www" / "eshtaya-template-manager-card.js",
+            *self._generated_paths(),
+        ]
+        safe.extend(config.glob(f".storage/{LEGACY_DOMAIN}*"))
+        safe.extend(config.glob(f"packages/{LEGACY_DOMAIN}*.yaml"))
+        return list(dict.fromkeys(path for path in safe if path.exists()))
 
     async def _backup(
         self,
