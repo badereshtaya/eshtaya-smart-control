@@ -10,11 +10,12 @@ _LOGGER = logging.getLogger(__name__)
 LEGACY_REPOSITORIES = (
     "badereshtaya/hacs-eshtaya-entity-manager",
     "badereshtaya/hacs-eshtaya-multiway-control",
+    "badereshtaya/hacs-eshtaya-template-manager",
 )
 
 
 async def async_cleanup_legacy_hacs(hass: HomeAssistant) -> dict[str, str]:
-    """Ask HACS to uninstall/unregister old repositories without touching folders directly."""
+    """Ask HACS to uninstall/unregister old repositories after verified migration."""
     results: dict[str, str] = {}
     hacs = hass.data.get("hacs")
     if hacs is None:

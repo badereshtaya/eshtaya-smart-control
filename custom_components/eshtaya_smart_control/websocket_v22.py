@@ -1,4 +1,4 @@
-"""Core WebSocket API for Eshtaya Smart Control v2.2."""
+"""Core WebSocket API for Eshtaya Smart Control v2.2+."""
 from __future__ import annotations
 
 from typing import Any
@@ -8,7 +8,7 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
 from .const import DOMAIN, VERSION
-from .documentation_v22 import DOCUMENTATION
+from .documentation_v23 import DOCUMENTATION
 from .home_assistant_access import async_snapshot as async_ha_access_snapshot
 from .home_assistant_access import async_update_user as async_ha_access_update_user
 from .websocket import websocket_migration_report, websocket_system_action, websocket_system_report
@@ -25,7 +25,7 @@ from .ws_permissions import permissioned_admin_command
 
 @callback
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
-    """Register v2.2 APIs without duplicating v2.1 command names."""
+    """Register core APIs without duplicating v2.1 command names."""
     commands = (
         websocket_access_current,
         websocket_overview,
