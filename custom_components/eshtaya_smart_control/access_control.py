@@ -19,6 +19,7 @@ PERMISSIONS: tuple[str, ...] = (
     "entity.view", "entity.manage",
     "tuya.view", "tuya.control", "tuya.configure",
     "multi.view", "multi.control", "multi.manage",
+    "template.view", "template.manage",
     "docs.view",
     "system.view", "system.actions", "system.reports",
     "access.manage",
@@ -29,6 +30,7 @@ MODULE_PERMISSION = {
     "entity": "entity.view",
     "tuya": "tuya.view",
     "multi": "multi.view",
+    "template": "template.view",
     "docs": "docs.view",
     "system": "system.view",
     "access": "access.manage",
@@ -36,9 +38,9 @@ MODULE_PERMISSION = {
 
 BUILTIN_ROLES: dict[str, dict[str, Any]] = {
     "no_access": {"name": "No Access", "permissions": []},
-    "viewer": {"name": "Viewer", "permissions": ["dashboard.view", "entity.view", "tuya.view", "multi.view", "docs.view", "system.view"]},
-    "operator": {"name": "Operator", "permissions": ["dashboard.view", "entity.view", "tuya.view", "tuya.control", "multi.view", "multi.control", "docs.view", "system.view"]},
-    "technician": {"name": "Technician", "permissions": ["dashboard.view", "entity.view", "entity.manage", "tuya.view", "tuya.control", "multi.view", "multi.control", "multi.manage", "docs.view", "system.view", "system.actions", "system.reports"]},
+    "viewer": {"name": "Viewer", "permissions": ["dashboard.view", "entity.view", "tuya.view", "multi.view", "template.view", "docs.view", "system.view"]},
+    "operator": {"name": "Operator", "permissions": ["dashboard.view", "entity.view", "tuya.view", "tuya.control", "multi.view", "multi.control", "template.view", "docs.view", "system.view"]},
+    "technician": {"name": "Technician", "permissions": ["dashboard.view", "entity.view", "entity.manage", "tuya.view", "tuya.control", "multi.view", "multi.control", "multi.manage", "template.view", "template.manage", "docs.view", "system.view", "system.actions", "system.reports"]},
     "platform_manager": {"name": "Platform Manager", "permissions": list(PERMISSIONS)},
 }
 
