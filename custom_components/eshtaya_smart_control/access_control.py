@@ -36,22 +36,9 @@ MODULE_PERMISSION = {
 
 BUILTIN_ROLES: dict[str, dict[str, Any]] = {
     "no_access": {"name": "No Access", "permissions": []},
-    "viewer": {
-        "name": "Viewer",
-        "permissions": ["dashboard.view", "entity.view", "tuya.view", "multi.view", "docs.view", "system.view"],
-    },
-    "operator": {
-        "name": "Operator",
-        "permissions": ["dashboard.view", "entity.view", "tuya.view", "tuya.control", "multi.view", "multi.control", "docs.view", "system.view"],
-    },
-    "technician": {
-        "name": "Technician",
-        "permissions": [
-            "dashboard.view", "entity.view", "entity.manage", "tuya.view", "tuya.control",
-            "multi.view", "multi.control", "multi.manage", "docs.view", "system.view",
-            "system.actions", "system.reports",
-        ],
-    },
+    "viewer": {"name": "Viewer", "permissions": ["dashboard.view", "entity.view", "tuya.view", "multi.view", "docs.view", "system.view"]},
+    "operator": {"name": "Operator", "permissions": ["dashboard.view", "entity.view", "tuya.view", "tuya.control", "multi.view", "multi.control", "docs.view", "system.view"]},
+    "technician": {"name": "Technician", "permissions": ["dashboard.view", "entity.view", "entity.manage", "tuya.view", "tuya.control", "multi.view", "multi.control", "multi.manage", "docs.view", "system.view", "system.actions", "system.reports"]},
     "platform_manager": {"name": "Platform Manager", "permissions": list(PERMISSIONS)},
 }
 
@@ -70,12 +57,7 @@ class AccessControlManager:
 
     @staticmethod
     def _empty() -> dict[str, Any]:
-        return {
-            "roles": {},
-            "users": {},
-            "audit": [],
-            "settings": {"default_role": "no_access"},
-        }
+        return {"roles": {}, "users": {}, "audit": [], "settings": {"default_role": "no_access"}}
 
     async def async_load(self) -> None:
         loaded = await self._store.async_load()
@@ -92,11 +74,7 @@ class AccessControlManager:
     def _roles(self) -> dict[str, dict[str, Any]]:
         roles = deepcopy(BUILTIN_ROLES)
         for role_id, role in self._data.get("roles", {}).items():
-            roles[role_id] = {
-                "name": str(role.get("name") or role_id),
-                "permissions": sorted(set(role.get("permissions") or []) & set(PERMISSIONS)),
-                "custom": True,
-            }
+            roles[role_id] = {"name": str(role.get("name") or role_id), "permissions": sorted(set(role.get("permissions") or []) & set(PERMISSIONS)), "custom": True}
         return roles
 
     def _assignment(self, user_id: str) -> dict[str, Any]:
@@ -130,32 +108,14 @@ class AccessControlManager:
 
     def public_access(self, user) -> dict[str, Any]:
         perms = self.permissions_for(user)
-        return {
-            "is_admin": bool(user and getattr(user, "is_admin", False)),
-            "permissions": sorted(perms),
-            "modules": {module: perm in perms for module, perm in MODULE_PERMISSION.items()},
-        }
+        return {"is_admin": bool(user and getattr(user, "is_admin", False)), "permissions": sorted(perms), "modules": {module: perm in perms for module, perm in MODULE_PERMISSION.items()}}
 
     async def async_admin_snapshot(self) -> dict[str, Any]:
         users = []
         for user in await self.hass.auth.async_get_users():
             assignment = self._assignment(user.id)
-            users.append({
-                "id": user.id,
-                "name": user.name or user.id,
-                "is_admin": user.is_admin,
-                "is_active": user.is_active,
-                "system_generated": user.system_generated,
-                "assignment": assignment,
-                "effective_permissions": sorted(self.permissions_for(user)),
-            })
-        return {
-            "roles": self._roles(),
-            "permissions": list(PERMISSIONS),
-            "users": users,
-            "settings": deepcopy(self._data["settings"]),
-            "audit": list(reversed(self._data["audit"][-100:])),
-        }
+            users.append({"id": user.id, "name": user.name or user.id, "is_admin": user.is_admin, "is_active": getattr(user, "is_active", True), "system_generated": getattr(user, "system_generated", False), "assignment": assignment, "effective_permissions": sorted(self.permissions_for(user))})
+        return {"roles": self._roles(), "permissions": list(PERMISSIONS), "users": users, "settings": deepcopy(self._data["settings"]), "audit": list(reversed(self._data["audit"][-100:]))}
 
     async def async_assign_user(self, actor, user_id: str, role: str, allow: list[str], deny: list[str], expires_at: str | None) -> None:
         if role not in self._roles():
@@ -169,10 +129,7 @@ class AccessControlManager:
         clean_deny = sorted(set(deny) & set(PERMISSIONS))
         if expires_at:
             datetime.fromisoformat(expires_at)
-        self._data["users"][user_id] = {
-            "role": role, "allow": clean_allow, "deny": clean_deny,
-            "expires_at": expires_at or None, "updated_at": _utcnow(),
-        }
+        self._data["users"][user_id] = {"role": role, "allow": clean_allow, "deny": clean_deny, "expires_at": expires_at or None, "updated_at": _utcnow()}
         self._audit(actor, "user_permissions_updated", user_id, {"role": role, "allow": clean_allow, "deny": clean_deny, "expires_at": expires_at})
         await self._store.async_save(self._data)
 
@@ -195,14 +152,7 @@ class AccessControlManager:
         await self._store.async_save(self._data)
 
     def _audit(self, actor, action: str, target: str, details: dict[str, Any]) -> None:
-        self._data["audit"].append({
-            "timestamp": _utcnow(),
-            "actor_id": getattr(actor, "id", None),
-            "actor_name": getattr(actor, "name", None),
-            "action": action,
-            "target": target,
-            "details": details,
-        })
+        self._data["audit"].append({"timestamp": _utcnow(), "actor_id": getattr(actor, "id", None), "actor_name": getattr(actor, "name", None), "action": action, "target": target, "details": details})
         self._data["audit"] = self._data["audit"][-500:]
 
 
