@@ -7,7 +7,15 @@ from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, PANEL_ELEMENT, PANEL_ICON, PANEL_TITLE, PANEL_URL, STATIC_URL, VERSION
+from .const import (
+    DOMAIN,
+    PANEL_ELEMENT,
+    PANEL_ICON,
+    PANEL_TITLE,
+    PANEL_URL,
+    STATIC_URL,
+    VERSION,
+)
 
 
 async def async_register_panel(hass: HomeAssistant) -> None:
@@ -17,6 +25,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
             [StaticPathConfig(STATIC_URL, str(frontend_dir), cache_headers=True)]
         )
     except RuntimeError:
+        # The static route survives config-entry reloads; registering it twice is harmless.
         pass
 
     if frontend.async_panel_exists(hass, PANEL_URL):
@@ -25,7 +34,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         hass=hass,
         frontend_url_path=PANEL_URL,
         webcomponent_name=PANEL_ELEMENT,
-        module_url=f"{STATIC_URL}/smart-control-panel-v21.js?v={VERSION}",
+        module_url=f"{STATIC_URL}/smart-control-panel-v22.js?v={VERSION}",
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         require_admin=False,
