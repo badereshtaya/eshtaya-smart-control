@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.2.0 — Stability, native Home Assistant access & complete documentation
+
+- Replaced the v2.1 prototype-patched Control Hub with a standalone versioned v2.2 Web Component, eliminating the first-load patch timing race.
+- Added bounded WebSocket timeouts and safe-read retries so stalled requests return a recoverable error instead of an endless loading spinner.
+- Isolated module loading so a Tuya Cloud failure cannot block Entity/Alexa or Multi-Way/Smart Groups.
+- Reworked Multi-Way frontend refresh to use partial `Promise.allSettled` results, debounced runtime events and coalesced refreshes instead of overlapping refresh storms.
+- Serialized Tuya device-list refreshes with an async lock and added last-successful-cache fallback for normal page loads during temporary cloud failures.
+- Added Tuya last-success/last-error diagnostics without exposing credentials.
+- Added **native Home Assistant entity access management** using Home Assistant's own read/control/edit permission policy engine.
+- Added Standard User, Read Only, No Entity Access and Restricted native access modes, with Administrator assignment restricted to the Home Assistant Owner.
+- Added Restricted policy grants by all entities, domain, area and specific entity.
+- Protected the Home Assistant Owner, system-generated users and the current administrator from lockout-causing edits.
+- Added automatic backup of each user's original Home Assistant group IDs before the first managed native access change, plus one-click Restore Original.
+- Native restricted groups are created only when the loaded Home Assistant AuthStore passes compatibility checks; the `.storage/auth` file is never edited directly.
+- Kept Eshtaya module permissions as a separate backend-enforced layer for Dashboard, Entity, Tuya, Multi-Way, Documentation, System and Access tools.
+- Rebuilt the Access Control screen to clearly separate whole-Home-Assistant entity access from Eshtaya module administration.
+- Replaced the short in-app documentation summaries with complete bilingual operating guides covering every module, major setting, workflow, safety rule and troubleshooting path.
+- Expanded troubleshooting documentation for WebSocket timeouts, Tuya cloud/cache behavior, Multi-Way refresh storms, startup recovery and native HA access recovery.
+
 ## 2.1.0 — Access Control, startup safety & in-app documentation
 
 - Added a backend-enforced **Access Control Center** built on existing Home Assistant users.
