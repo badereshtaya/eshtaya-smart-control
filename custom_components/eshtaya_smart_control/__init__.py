@@ -38,7 +38,7 @@ from .template_manager.const import (
     LEGACY_DOMAIN as TEMPLATE_LEGACY_DOMAIN,
 )
 from .template_manager.manager import TemplateManager
-from .template_manager.migration import LegacyTemplateMigration
+from .template_manager.migration_v231 import LegacyTemplateMigration
 from .template_manager.store import TemplateManagerStore
 from .template_manager.websocket import async_register_websocket_commands as async_register_template_ws
 from .tuya.manager import TuyaManager
@@ -90,8 +90,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_tuya_ws(hass)
     async_register_template_ws(hass)
     async_register_core_ws(hass)
-    # Unified service names are always safe. Legacy-domain aliases are installed only
-    # after migration has either completed or no standalone implementation exists.
     await async_setup_template_services(hass)
     return True
 
@@ -153,9 +151,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     replace_legacy=True,
                 )
         elif template_restart_required:
-            # This is an intentional safe checkpoint, not an error. Legacy generated
-            # files have been backed up/removed, but their entities are still resident
-            # in memory. Deferred unified entities wait for the next HA restart.
             _LOGGER.warning(
                 "Template Manager migration is staged and requires one Home Assistant "
                 "restart to release legacy entity IDs. No duplicate entities were created."
@@ -198,8 +193,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(entry.add_update_listener(_entry_updated))
         return True
     except Exception as err:
-        # If unified platforms already started, unload them before restoring legacy
-        # ownership. This prevents old Entity IDs from returning with a *_2 suffix.
         if data.get(DATA_RUNTIME):
             try:
                 await async_unload_multiway_entry(hass, entry)
