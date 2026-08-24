@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.0 — Runtime resilience, Home Assistant system access & full operating manual
+
+- Fixed intermittent first-load failures that could leave Entity/Alexa, Tuya or Multi-Way/Smart Groups mounted without data after a transient WebSocket disconnect or startup race.
+- Added bounded request timeouts, exponential retry/backoff, stale-request protection, browser online/focus recovery and independent module recovery instead of single-shot loading.
+- Reworked Multi-Way frontend bootstrap so a temporary Catalog or Native Group request failure does not cancel successfully loaded runtime/group data.
+- Added visible recovery diagnostics for Tuya and Multi-Way while automatic retry is active.
+- Added a new versioned v2.2 frontend entrypoint to prevent older cached frontend modules from surviving an upgrade.
+- Added **real Home Assistant system-wide user access management** using Home Assistant's native auth manager and built-in Administrator, User and Read Only groups.
+- Added real account Active/Inactive and Local Only controls, while protecting the Home Assistant Owner, the current administrator from self-lockout, and system-generated users.
+- Kept Eshtaya granular roles and Allow/Deny/expiration rules as a separate backend-enforced layer instead of pretending they are unsupported Home Assistant Core RBAC rules.
+- Explicitly documents current Home Assistant Core limitations: HACS integrations cannot safely create supported custom Core RBAC roles, explicit Core deny policies or per-service ACLs.
+- Replaced the short in-app help with a detailed Arabic-first operating manual covering installation, Dashboard, Entity/Alexa, Tuya, Multi-Way, Smart Groups, Commissioning, System Center, Access Control, Migration, architecture, security/backups and troubleshooting.
+- Expanded troubleshooting documentation with the intermittent loading root cause, automatic recovery behavior, Tuya timeout diagnosis, Multi-Way startup recovery, permissions troubleshooting and cache recovery.
+- Bumped the integration and HACS release version to 2.2.0.
+
 ## 2.1.0 — Access Control, startup safety & in-app documentation
 
 - Added a backend-enforced **Access Control Center** built on existing Home Assistant users.
