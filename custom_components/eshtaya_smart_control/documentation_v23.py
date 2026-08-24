@@ -1,33 +1,33 @@
-"""Documentation loader for Eshtaya Smart Control.
+"""Offline documentation loader for Eshtaya Smart Control.
 
-The canonical human-edited documentation lives under ``docs/ar`` and ``docs/en``
-in the GitHub repository. ``docs_bundle.json`` is a packaged mirror of those
-Markdown files so HACS installations can render the exact same documentation
-offline inside Home Assistant.
+The canonical human-edited Markdown lives under ``docs/ar`` and ``docs/en`` at
+repository root. The exact same blobs are packaged under this integration's
+``docs`` directory so HACS installations render the same text offline.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Final
 
-_BUNDLE_PATH: Final = Path(__file__).with_name("docs_bundle.json")
+_DOCS_ROOT: Final = Path(__file__).with_name("docs")
+_FILENAME_TO_SLUG: Final = {
+    "SECURITY_AND_BACKUP": "SECURITY_BACKUP",
+}
 
 
 def _load_documentation() -> dict[str, dict[str, str]]:
-    try:
-        raw = json.loads(_BUNDLE_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as err:
-        raise RuntimeError(f"Could not load packaged documentation: {err}") from err
-
     result: dict[str, dict[str, str]] = {"ar": {}, "en": {}}
     for language in ("ar", "en"):
-        pages = raw.get(language)
-        if not isinstance(pages, dict):
-            raise RuntimeError(f"Documentation bundle is missing language: {language}")
-        for slug, content in pages.items():
-            if isinstance(slug, str) and isinstance(content, str) and content.strip():
-                result[language][slug.strip().upper()] = content
+        language_dir = _DOCS_ROOT / language
+        if not language_dir.is_dir():
+            raise RuntimeError(f"Packaged documentation directory is missing: {language_dir}")
+        for path in sorted(language_dir.glob("*.md")):
+            content = path.read_text(encoding="utf-8")
+            if not content.strip():
+                continue
+            raw_slug = path.stem.strip().upper()
+            slug = _FILENAME_TO_SLUG.get(raw_slug, raw_slug)
+            result[language][slug] = content
     return result
 
 
