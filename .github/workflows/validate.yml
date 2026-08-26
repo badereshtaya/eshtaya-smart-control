@@ -24,11 +24,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: python -m compileall -q custom_components/eshtaya_smart_control
+      - name: Compile Python
+        run: python -m compileall -q custom_components/eshtaya_smart_control
+      - name: Verify packaged documentation is byte-identical to GitHub docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff -ru docs/ar custom_components/eshtaya_smart_control/docs/ar
+          diff -ru docs/en custom_components/eshtaya_smart_control/docs/en
+      - name: Verify documentation loader can see all guides
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          expected = {
+              "GETTING_STARTED", "DASHBOARD", "ENTITY_CONTROL", "TUYA_CONTROL",
+              "MULTIWAY", "SMART_GROUPS", "COMMISSIONING", "SYSTEM_CENTER",
+              "ACCESS_CONTROL", "MIGRATION", "ARCHITECTURE", "SECURITY_AND_BACKUP",
+              "TROUBLESHOOTING", "TEMPLATE_MANAGER",
+          }
+          for language in ("ar", "en"):
+              found = {p.stem for p in Path("custom_components/eshtaya_smart_control/docs", language).glob("*.md")}
+              missing = sorted(expected - found)
+              extra = sorted(found - expected)
+              if missing or extra:
+                  raise SystemExit(f"{language}: missing={missing} extra={extra}")
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: |
+      - name: Check JavaScript syntax
+        run: |
           find custom_components/eshtaya_smart_control/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
   package:
     needs: [hacs, hassfest, syntax]

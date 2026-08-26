@@ -5,6 +5,7 @@ const VIEW_PERMISSION = {
   entity: "entity.view",
   tuya: "tuya.view",
   multi: "multi.view",
+  template: "template.view",
   docs: "docs.view",
   system: "system.view",
   access: "access.manage",
@@ -24,6 +25,7 @@ const DOCS_V21 = [
   ["ARCHITECTURE", "mdi:sitemap-outline", "Architecture", "البنية التقنية"],
   ["SECURITY_BACKUP", "mdi:shield-lock-outline", "Security & Backup", "الأمان والنسخ الاحتياطي"],
   ["TROUBLESHOOTING", "mdi:lifebuoy", "Troubleshooting", "حل المشاكل"],
+  ["TEMPLATE_MANAGER", "mdi:swap-horizontal-bold", "Template Manager", "إدارة الكيانات الدائمة"],
 ];
 
 const PERMISSION_LABELS = {
@@ -36,6 +38,8 @@ const PERMISSION_LABELS = {
   "multi.view": ["Multi-Way: View", "Multi-Way: مشاهدة"],
   "multi.control": ["Multi-Way: Control", "Multi-Way: تحكم"],
   "multi.manage": ["Multi-Way: Manage", "Multi-Way: إدارة"],
+  "template.view": ["Template Manager: View", "الكيانات الدائمة: مشاهدة"],
+  "template.manage": ["Template Manager: Manage", "الكيانات الدائمة: إدارة"],
   "docs.view": ["Documentation", "التوثيق"],
   "system.view": ["System: View", "النظام: مشاهدة"],
   "system.actions": ["System: Actions", "النظام: إجراءات"],
@@ -50,10 +54,11 @@ function can(panel, permission) {
 }
 function moduleAllowed(panel, view) {
   const permission = VIEW_PERMISSION[view];
-  return permission ? can(panel, permission) : false;
+  if (!permission) return view === "none";
+  return can(panel, permission);
 }
 function firstAllowedView(panel) {
-  return ["dashboard", "entity", "tuya", "multi", "docs", "system", "access"].find(v => moduleAllowed(panel, v)) || "none";
+  return ["dashboard", "entity", "tuya", "multi", "template", "docs", "system", "access"].find(v => moduleAllowed(panel, v)) || "none";
 }
 
 customElements.whenDefined("eshtaya-smart-control-panel").then(() => {
@@ -92,6 +97,7 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(() => {
       ["entity", "mdi:account-eye-outline", this._t("entity")],
       ["tuya", "mdi:cloud-cog-outline", this._t("tuya")],
       ["multi", "mdi:home-switch-outline", this._t("multi")],
+      ["template", "mdi:swap-horizontal-bold", txt(this,"Template Manager","الكيانات الدائمة")],
       ["docs", "mdi:book-open-page-variant-outline", this._t("docs")],
       ["system", "mdi:heart-pulse", this._t("system")],
       ["access", "mdi:account-key-outline", txt(this, "Access Control", "الصلاحيات")],
@@ -129,6 +135,7 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(() => {
     if(can(this,"entity.view")) moduleCards.push(this._module("entity","mdi:account-eye-outline",this._t("entity"),this._t("entityDesc"),`${e.total??0} ${this._t("entities")}`,"violet"));
     if(can(this,"tuya.view")) moduleCards.push(this._module("tuya","mdi:cloud-cog-outline",this._t("tuya"),this._t("tuyaDesc"),t.configured?this._t("activated"):this._t("notActivated"),"cyan"));
     if(can(this,"multi.view")) moduleCards.push(this._module("multi","mdi:home-switch-outline",this._t("multi"),this._t("multiDesc"),`${m.groups??0} + ${s.groups??0}`,"green"));
+    if(can(this,"template.view")) moduleCards.push(this._module("template","mdi:swap-horizontal-bold",txt(this,"Template Manager","الكيانات الدائمة"),txt(this,"Permanent Light/Fan entities backed by physical switches.","كيانات Light/Fan دائمة مرتبطة بالمفاتيح الفعلية."),"","cyan"));
     if(can(this,"docs.view")) moduleCards.push(this._module("docs","mdi:book-open-page-variant-outline",this._t("docs"),this._t("docsDesc"),`${DOCS_V21.length} ${ar(this)?"دليل":"guides"}`,"amber"));
     if(can(this,"system.view")) moduleCards.push(this._module("system","mdi:heart-pulse",this._t("system"),this._t("systemDesc"),`${h.score??100}/100`,"slate"));
     if(can(this,"access.manage")) moduleCards.push(this._module("access","mdi:account-key-outline",txt(this,"Access Control","مركز الصلاحيات"),txt(this,"Manage Home Assistant users, roles, overrides, temporary access and audit history.","إدارة مستخدمي Home Assistant والأدوار والاستثناءات والصلاحيات المؤقتة وسجل التدقيق."),`${this._accessAdmin?.users?.length??0} ${txt(this,"users","مستخدم")}`,"violet"));
@@ -151,35 +158,24 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(() => {
     if(this._doc) return this._docPage();
     const q=this._docSearch.trim().toLowerCase();
     const docs=DOCS_V21.filter(([slug,_i,en,arabic])=>`${slug} ${en} ${arabic}`.toLowerCase().includes(q));
-    return `<section class="pageTitle"><div class="pageIcon">${this._icon("mdi:book-open-page-variant-outline")}</div><div><span>KNOWLEDGE BASE</span><h1>${this._t("documentation")}</h1><p>${this._t("docsDesc")}</p></div></section><div class="docSearch">${this._icon("mdi:magnify")}<input data-doc-search value="${this._esc(this._docSearch)}" placeholder="${this._t("searchDocs")}"></div><section class="docGrid">${docs.map(([slug,icon,en,arabic],i)=>`<button class="docCard" data-doc="${slug}"><span>${String(i+1).padStart(2,"0")}</span>${this._icon(icon)}<b>${ar(this)?arabic:en}</b><small>${slug}.md</small></button>`).join("")}</section>`;
+    return `<section class="pageTitle"><div class="pageIcon">${this._icon("mdi:book-open-page-variant-outline")}</div><div><span>KNOWLEDGE BASE</span><h1>${this._t("documentation")}</h1><p>${this._t("docsDesc")}</p></div></section><div class="docSearch">${this._icon("mdi:magnify")}<input data-doc-search value="${this._esc(this._docSearch)}" placeholder="${this._t("searchDocs")}"></div><section class="docGrid">${docs.map(([slug,icon,en,arabic],i)=>`<button class="docCard" data-doc="${slug}"><span>${i+1}</span><div class="docIcon">${this._icon(icon)}</div><b>${ar(this)?arabic:en}</b><small>${slug}.md</small></button>`).join("")}</section>`;
   };
 
-  p._openDoc = async function (slug) {
-    this._doc=slug;this._docText="";this._render();
-    try{
-      const result=await this._hass.callWS({type:`${DOMAIN}/documentation/get`,slug,language:this._lang});
-      this._docText=result.content||"";
-    }catch(e){this._docText=`# ${this._t("docLoadError")}\n\n${e?.message||String(e)}`;}
-    this._render();
+  p._docPage = function () {
+    const arrow = "mdi:arrow-" + (ar(this) ? "right" : "left");
+    return `<section class="docPage"><button class="back" data-action="doc-back">${this._icon(arrow)} ${this._t("back")}</button><article>${this._markdown(this._doc?.content||"")}</article></section>`;
   };
 
   p._accessPage = function () {
-    const snap=this._accessAdmin;
-    if(!snap) return `<div class="loading">${this._icon("mdi:loading","spin")} ${txt(this,"Loading access control...","جاري تحميل مركز الصلاحيات...")}</div>`;
-    const roles=snap.roles||{}, permissions=snap.permissions||[], users=snap.users||[], audit=snap.audit||[];
-    const roleOptions=Object.entries(roles).map(([id,r])=>`<option value="${this._esc(id)}">${this._esc(r.name||id)}</option>`).join("");
-    const usersHtml=users.map(user=>{
-      const a=user.assignment||{}, role=a.role||snap.settings?.default_role||"no_access";
-      const disabled=user.is_admin?"disabled":"";
-      const effective=(user.effective_permissions||[]).map(x=>this._permLabel(x)).join(" · ")||txt(this,"No permissions","بدون صلاحيات");
-      const expiry=a.expires_at?String(a.expires_at).slice(0,16):"";
-      const override=(mode)=>permissions.map(perm=>`<label><input type="checkbox" data-ac-${mode}="${this._esc(perm)}" ${Array.isArray(a[mode])&&a[mode].includes(perm)?"checked":""} ${disabled}> <span>${this._permLabel(perm)}</span></label>`).join("");
-      return `<article class="accessUser" data-ac-user="${this._esc(user.id)}"><div class="accessUserHead"><div><b>${this._esc(user.name||user.id)}</b><small>${user.is_admin?txt(this,"Home Assistant Administrator · Full Access","مدير Home Assistant · صلاحية كاملة"):this._esc(user.id)}</small></div><span class="badge ${user.is_admin?"success":""}">${user.is_admin?"ADMIN":this._esc(roles[role]?.name||role)}</span></div>${user.is_admin?`<p class="muted">${txt(this,"Administrators always keep full Eshtaya access and cannot be restricted here.","المدير يحتفظ دائماً بصلاحية كاملة ولا يمكن تقييده من هنا.")}</p>`:`<div class="accessFields"><label>${txt(this,"Role","الدور")}<select data-ac-role>${roleOptions}</select></label><label>${txt(this,"Expires","انتهاء الصلاحية")}<input type="datetime-local" data-ac-expiry value="${this._esc(expiry)}"></label></div><script type="application/json" data-ac-current-role>${JSON.stringify(role)}</script><details><summary>${txt(this,"Advanced per-user overrides","استثناءات متقدمة للمستخدم")}</summary><div class="overrideGrid"><div><h4>ALLOW</h4>${override("allow")}</div><div><h4>DENY</h4>${override("deny")}</div></div></details><button class="primary accessSave" data-ac-save-user="${this._esc(user.id)}">${txt(this,"Save permissions","حفظ الصلاحيات")}</button>`}<div class="effective"><b>${txt(this,"Effective permissions","الصلاحيات الفعلية")}</b><small>${this._esc(effective)}</small></div></article>`;
-    }).join("");
-    const customRoles=Object.entries(roles).filter(([,r])=>r.custom).map(([id,r])=>`<div class="roleRow"><div><b>${this._esc(r.name)}</b><small>${this._esc(id)}</small></div><button class="ghost" data-ac-delete-role="${this._esc(id)}">${this._icon("mdi:delete-outline")}</button></div>`).join("")||`<p class="muted">${txt(this,"No custom roles yet.","لا توجد أدوار مخصصة بعد.")}</p>`;
+    const snap=this._accessAdmin;if(!snap)return `<section class="panel"><div class="loading">${this._icon("mdi:loading","spin")} ${txt(this,"Loading access data...","جاري تحميل الصلاحيات...")}</div></section>`;
+    const users=snap.users||[],roles=snap.roles||{},permissions=snap.permissions||[],audit=snap.audit||[];
+    const roleOptions=user=>Object.entries(roles).map(([id,r])=>`<option value="${this._esc(id)}" ${user.assignment?.role===id?"selected":""}>${this._esc(r.name||id)}</option>`).join("");
+    const usersHtml=users.map(user=>`<article class="accessUser" data-ac-user="${this._esc(user.id)}"><div class="accessUserHead"><div><b>${this._esc(user.name)}</b><small>${this._esc(user.id)}</small></div><span class="badge ${user.is_admin?"success":""}">${user.is_admin?"HA Admin":txt(this,"Managed user","مستخدم")}</span></div><div class="accessFields"><label>${txt(this,"Role","الدور")}<select data-ac-role ${user.is_admin?"disabled":""}>${roleOptions(user)}</select></label><label>${txt(this,"Expires","ينتهي")}<input data-ac-expiry type="datetime-local" value="${user.assignment?.expires_at?String(user.assignment.expires_at).slice(0,16):""}" ${user.is_admin?"disabled":""}></label></div><details><summary>${txt(this,"Permission overrides","استثناءات الصلاحيات")}</summary><div class="overrideGrid"><div><h4>${txt(this,"Force allow","سماح إضافي")}</h4>${permissions.map(perm=>`<label><input type="checkbox" data-ac-allow="${this._esc(perm)}" ${user.assignment?.allow?.includes(perm)?"checked":""} ${user.is_admin?"disabled":""}> <span>${this._permLabel(perm)}</span></label>`).join("")}</div><div><h4>${txt(this,"Force deny","منع إضافي")}</h4>${permissions.map(perm=>`<label><input type="checkbox" data-ac-deny="${this._esc(perm)}" ${user.assignment?.deny?.includes(perm)?"checked":""} ${user.is_admin?"disabled":""}> <span>${this._permLabel(perm)}</span></label>`).join("")}</div></div></details>${user.is_admin?"":`<button class="primary accessSave" data-ac-save-user="${this._esc(user.id)}">${txt(this,"Save permissions","حفظ الصلاحيات")}</button>`}<div class="effective"><b>${txt(this,"Effective permissions","الصلاحيات الفعلية")}</b><small>${(user.effective_permissions||[]).map(p=>this._permLabel(p)).join(" · ")||txt(this,"No access","لا يوجد وصول")}</small></div></article>`).join("");
+    const customRoles=Object.entries(roles).filter(([,r])=>r.custom).map(([id,r])=>`<div class="roleRow"><div><b>${this._esc(r.name)}</b><small>${this._esc(id)} · ${(r.permissions||[]).length} permissions</small></div><button class="iconBtn danger" data-ac-delete-role="${this._esc(id)}">${this._icon("mdi:delete-outline")}</button></div>`).join("")||`<p class="muted">${txt(this,"No custom roles yet.","لا توجد أدوار مخصصة بعد.")}</p>`;
     const permissionChecks=permissions.map(perm=>`<label><input type="checkbox" data-ac-role-perm="${this._esc(perm)}"> <span>${this._permLabel(perm)}</span></label>`).join("");
     const auditHtml=audit.slice(0,40).map(row=>`<tr><td>${this._esc(String(row.timestamp||"").replace("T"," ").slice(0,19))}</td><td>${this._esc(row.actor_name||row.actor_id||"—")}</td><td>${this._esc(row.action||"")}</td><td>${this._esc(row.target||"")}</td></tr>`).join("");
-    const html=`<section class="pageTitle"><div class="pageIcon">${this._icon("mdi:account-key-outline")}</div><div><span>ROLE BASED ACCESS CONTROL</span><h1>${txt(this,"Access Control Center","مركز الصلاحيات والمستخدمين")}</h1><p>${txt(this,"Backend-enforced permissions for existing Home Assistant users.","صلاحيات محمية من الـBackend لمستخدمي Home Assistant الحاليين.")}</p></div></section><section class="accessLayout"><div class="accessUsers"><div class="sectionHead"><div><span>USERS</span><h2>${txt(this,"Home Assistant users","مستخدمو Home Assistant")}</h2></div><span class="badge">${users.length}</span></div>${usersHtml}</div><aside><article class="panel accessRole"><div class="panelHead"><h2>${txt(this,"Create custom role","إنشاء دور مخصص")}</h2>${this._icon("mdi:shield-account-outline")}</div><label>ID<input data-ac-role-id placeholder="lighting_operator"></label><label>${txt(this,"Role name","اسم الدور")}<input data-ac-role-name placeholder="Lighting Operator"></label><div class="rolePermissions">${permissionChecks}</div><button class="primary full" data-ac-save-role>${txt(this,"Save role","حفظ الدور")}</button></article><article class="panel"><div class="panelHead"><h2>${txt(this,"Custom roles","الأدوار المخصصة")}</h2></div>${customRoles}</article></aside></section><section class="panel auditPanel"><div class="panelHead"><h2>${txt(this,"Audit log","سجل التدقيق")}</h2>${this._icon("mdi:clipboard-text-clock-outline")}</div><div class="tableWrap"><table><thead><tr><th>${txt(this,"Time","الوقت")}</th><th>${txt(this,"Actor","المنفذ")}</th><th>${txt(this,"Action","الإجراء")}</th><th>${txt(this,"Target","الهدف")}</th></tr></thead><tbody>${auditHtml||`<tr><td colspan="4">${txt(this,"No audit events yet.","لا يوجد سجل بعد.")}</td></tr>`}</tbody></table></div></section>`;
+    const auditRows = auditHtml || `<tr><td colspan="4">${txt(this,"No audit events yet.","لا يوجد سجل بعد.")}</td></tr>`;
+    const html=`<section class="pageTitle"><div class="pageIcon">${this._icon("mdi:account-key-outline")}</div><div><span>ROLE BASED ACCESS CONTROL</span><h1>${txt(this,"Access Control Center","مركز الصلاحيات والمستخدمين")}</h1><p>${txt(this,"Backend-enforced permissions for existing Home Assistant users.","صلاحيات محمية من الـBackend لمستخدمي Home Assistant الحاليين.")}</p></div></section><section class="accessLayout"><div class="accessUsers"><div class="sectionHead"><div><span>USERS</span><h2>${txt(this,"Home Assistant users","مستخدمو Home Assistant")}</h2></div><span class="badge">${users.length}</span></div>${usersHtml}</div><aside><article class="panel accessRole"><div class="panelHead"><h2>${txt(this,"Create custom role","إنشاء دور مخصص")}</h2>${this._icon("mdi:shield-account-outline")}</div><label>ID<input data-ac-role-id placeholder="lighting_operator"></label><label>${txt(this,"Role name","اسم الدور")}<input data-ac-role-name placeholder="Lighting Operator"></label><div class="rolePermissions">${permissionChecks}</div><button class="primary full" data-ac-save-role>${txt(this,"Save role","حفظ الدور")}</button></article><article class="panel"><div class="panelHead"><h2>${txt(this,"Custom roles","الأدوار المخصصة")}</h2></div>${customRoles}</article></aside></section><section class="panel auditPanel"><div class="panelHead"><h2>${txt(this,"Audit log","سجل التدقيق")}</h2>${this._icon("mdi:clipboard-text-clock-outline")}</div><div class="tableWrap"><table><thead><tr><th>${txt(this,"Time","الوقت")}</th><th>${txt(this,"Actor","المنفذ")}</th><th>${txt(this,"Action","الإجراء")}</th><th>${txt(this,"Target","الهدف")}</th></tr></thead><tbody>${auditRows}</tbody></table></div></section>`;
     setTimeout(()=>{this.shadowRoot?.querySelectorAll("[data-ac-user]").forEach(row=>{const id=row.dataset.acUser;const u=users.find(x=>x.id===id);const role=u?.assignment?.role||snap.settings?.default_role||"no_access";const select=row.querySelector("[data-ac-role]");if(select)select.value=role;});},0);
     return html;
   };
@@ -216,7 +212,7 @@ customElements.whenDefined("eshtaya-smart-control-panel").then(() => {
 
   p._deleteAccessRole = async function (roleId) {
     if(!confirm(txt(this,"Delete this custom role?","حذف هذا الدور المخصص؟")))return;
-    try{await this._hass.callWS({type:`${DOMAIN}/access/delete_role`,role_id:roleId});this._toast=txt(this,"Role deleted","تم حذف الدور");await this._refreshAccessAdmin();}catch(e){this._toast=`${txt(this,"Delete failed","فشل الحذف")}: ${e?.message||e}`;this._render();}
+    try{await this._hass.callWS({type:`${DOMAIN}/access/delete_role`,role_id:roleId});this._toast=txt(this,"Role deleted","تم حذف الدور");await this._refreshAccessAdmin();}catch(e){this._toast=`${txt(this,"Save failed","فشل الحفظ")}: ${e?.message||e}`;this._render();}
   };
 
   p._click = function (e) {

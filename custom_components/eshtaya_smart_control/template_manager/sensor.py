@@ -16,6 +16,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     manager = hass.data["eshtaya_smart_control"][DATA_TEMPLATE_MANAGER]
+    migration = manager.store.migration()
+    # When legacy generated entities are still resident in memory, do not claim the
+    # legacy sensor ID either. The next restart completes the exact-ID takeover.
+    if migration.get("phase") == "restart_required":
+        return
     async_add_entities([TemplateManagerSensor(manager)])
 
 
@@ -41,7 +46,9 @@ class TemplateManagerSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_TEMPLATE_CHANGED, self._update))
+        self.async_on_remove(
+            async_dispatcher_connect(self.hass, SIGNAL_TEMPLATE_CHANGED, self._update)
+        )
 
     @callback
     def _update(self) -> None:

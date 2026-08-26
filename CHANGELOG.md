@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.3.1 — Template Manager hotfix, safer migration & documentation sync
+
+- Fixed the frontend permission-map bug that could show Template Manager and then reject the click with `This role does not have access to that module.` even when `template.view` was present.
+- Synchronized `template.view` and `template.manage` across the canonical frontend view map, permission labels, built-in roles, first-allowed-view selection, navigation filtering and click protection.
+- Removed duplicate v2.3 navigation/dashboard/documentation patching so Template Manager now has one permission/navigation source of truth.
+- Bumped the integration to 2.3.1 so the sidebar asset loads with `?v=2.3.1` and does not keep the cached 2.3.0 JavaScript after a normal HACS update and Home Assistant restart.
+- Expanded legacy Template Manager discovery beyond config entries and the live sensor to include legacy services, the old custom component, known storage/package paths and generated YAML/JSON mappings.
+- Added recovery from `/config/packages/eshtaya_generated_templates.yaml`, `/config/packages/eshtaya_generated_lights.yaml`, `/config/eshtaya_template_manager/generated_templates.yaml`, `/config/eshtaya_template_manager/templates.json` and `/config/eshtaya_template_manager/mappings.json`.
+- Live legacy runtime mappings override file-discovered mappings when both exist, because the live record represents the mapping the old manager is actually using.
+- Re-checks actual legacy evidence during startup, so updating over 2.3.0 can migrate an old method that the earlier migrator incorrectly recorded as `not_found`.
+- Added a guarded `restart_required` migration checkpoint for YAML/non-config-entry legacy installations whose old Light/Fan entities remain resident in Home Assistant memory after their generated files are backed up and removed.
+- Defers new Light/Fan entities during `restart_required`, preventing accidental `light.*_2` or `fan.*_2` entity IDs and preventing two engines from controlling the same physical source.
+- Also treats an externally owned `sensor.eshtaya_template_manager` as an occupied legacy ID and defers the unified compatibility sensor, preventing `sensor.eshtaya_template_manager_2`.
+- Added migration locking at both UI and Python backend layers: Create/Edit/Delete/Relink cannot modify template mappings until the legacy cutover is verified.
+- Added rollback backup and file restoration support for generated legacy YAML/JSON/custom-component data.
+- Uses `template.reload` when available after generated legacy definitions are removed; if runtime ownership still cannot be released safely, migration stages the exact-ID takeover for the next Home Assistant restart instead of creating duplicates.
+- Kept normal HACS Update as the supported upgrade path; deleting/reinstalling the unified integration is not required for Template Manager migration.
+- Reworked in-app Documentation Center to read packaged Markdown files directly rather than a separate Python documentation copy.
+- Completed the GitHub documentation set to 14 Arabic and 14 English guides, including Template Manager, Access Control, commissioning, migration, security/backup and troubleshooting.
+- Packaged the exact same Markdown Git blobs under the integration so GitHub documentation and the offline in-app Documentation Center are byte-identical.
+- Added CI checks that fail if repository documentation and packaged in-app documentation differ or if either language is missing any of the expected 14 guides.
+- Rewrote README for the current 2.3.1 architecture, safe update workflow, Template Manager migration behavior, access model and complete bilingual documentation index.
+
 ## 2.3.0 — Integrated Template Manager & zero-duplicate migration
 
 - Integrated the former standalone **Eshtaya Template Manager** as a first-class module inside the unified Eshtaya Smart Control Control Hub.

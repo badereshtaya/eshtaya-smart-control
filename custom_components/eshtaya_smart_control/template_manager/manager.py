@@ -29,6 +29,15 @@ class TemplateManager:
     def ready(self) -> bool:
         return self._ready
 
+    def _ensure_mutation_allowed(self) -> None:
+        migration = self.store.migration()
+        if migration.get("legacy_found") and not migration.get("completed"):
+            phase = str(migration.get("phase") or "migration")
+            raise ValueError(
+                f"Template Manager changes are locked while legacy migration is {phase}. "
+                "Complete the migration/restart first."
+            )
+
     async def async_start(self) -> None:
         self._ready = False
         deadline = self.hass.loop.time() + STARTUP_GRACE_SECONDS
@@ -51,10 +60,6 @@ class TemplateManager:
                 continue
             if self.hass.states.get(source) is not None:
                 continue
-            # If the source still exists in Entity Registry, its integration may simply
-            # be loading slowly. Wait within the bounded grace period. If it is absent
-            # from both state machine and registry, it is genuinely missing and there
-            # is no value in delaying startup for the full grace period.
             if registry.async_get(source) is not None:
                 return False
         return True
@@ -147,6 +152,7 @@ class TemplateManager:
         return deepcopy(self._last_snapshot)
 
     async def async_create(self, *, source_entity: str, template_type: str, name: str, entity_id: str) -> dict[str, Any]:
+        self._ensure_mutation_allowed()
         template_type = template_type.lower().strip()
         entity_id = entity_id.strip()
         source_entity = source_entity.strip()
@@ -172,6 +178,7 @@ class TemplateManager:
         return record
 
     async def async_edit(self, *, managed_entity: str, name: str, entity_id: str) -> dict[str, Any]:
+        self._ensure_mutation_allowed()
         record = self.store.get(managed_entity)
         if not record:
             raise ValueError(f"Managed entity not found: {managed_entity}")
@@ -198,6 +205,7 @@ class TemplateManager:
         return record
 
     async def async_delete(self, managed_entity: str) -> None:
+        self._ensure_mutation_allowed()
         if not self.store.get(managed_entity):
             raise ValueError(f"Managed entity not found: {managed_entity}")
         await self.store.async_delete(managed_entity)
@@ -208,6 +216,7 @@ class TemplateManager:
         await self.async_scan()
 
     async def async_relink(self, *, managed_entity: str, source_entity: str) -> dict[str, Any]:
+        self._ensure_mutation_allowed()
         record = self.store.get(managed_entity)
         if not record:
             raise ValueError(f"Managed entity not found: {managed_entity}")
