@@ -14,7 +14,7 @@ This guide covers installation, updates, first startup, and the checks that matt
 - Eshtaya module permissions and supported Home Assistant account-role controls.
 - Arabic/English in-app documentation.
 
-## New installation through HACS
+# Installation through HACS
 
 1. Open **HACS → Integrations**.
 2. Add the custom repository:
@@ -28,11 +28,11 @@ https://github.com/badereshtaya/hacs-eshtaya-smart-control
 5. Open **Settings → Devices & services → Add integration**.
 6. Search for **Eshtaya Smart Control** and complete setup.
 
-Tuya credentials are not required during the initial installation. Tuya is optional and can be activated later from Tuya Control.
+Tuya OpenAPI credentials are not required during initial installation. Tuya Control is optional.
 
-## Updating an existing installation
+# Updating an existing installation
 
-The normal update path is supported and preferred:
+Use the normal update path:
 
 ```text
 HACS → Eshtaya Smart Control → Update
@@ -40,45 +40,94 @@ HACS → Eshtaya Smart Control → Update
 → Open Eshtaya Smart Control
 ```
 
-**Do not remove the integration just to update it.** Removing the config entry may discard state that could otherwise be migrated automatically.
+Do **not** delete the unified Config Entry just to update.
 
-Version 2.3.1 also changes the frontend version string so Home Assistant and the browser request fresh JavaScript after restart instead of continuing to use the 2.3.0 asset from cache.
+# What is different in 2.4.0?
 
-## If you use the old Template Manager method
+Version 2.4.0 introduces a startup barrier designed for slow/cloud-backed Home Assistant integrations such as official Tuya.
 
-Version 2.3.1 can migrate legacy generated YAML/JSON installations, not only old config-entry installations.
-
-The migrator recognizes sources such as:
+The old Multi-Way runtime used a fixed delay measured from Eshtaya load time. That could expire before Tuya restored a referenced entity and produce a false Repair such as:
 
 ```text
-/config/packages/eshtaya_generated_templates.yaml
-/config/packages/eshtaya_generated_lights.yaml
-/config/eshtaya_template_manager/generated_templates.yaml
-/config/eshtaya_template_manager/templates.json
-/config/eshtaya_template_manager/mappings.json
+Multi-way output entity is missing
 ```
 
-Before destructive cleanup it writes a rollback backup under:
+2.4.0 now layers:
+
+1. official Tuya `after_dependencies` ordering;
+2. Home Assistant startup-complete waiting;
+3. referenced Config Entry readiness checks;
+4. a configurable settle period;
+5. a post-start Repair grace period plus repeated missing confirmations.
+
+During protected startup, Multi-Way reports `starting/recovering`, not a fault, and missing-output/controller Repairs are suppressed.
+
+Recommended defaults:
 
 ```text
-/config/eshtaya_smart_control_backups/
+Wait for Home Assistant startup:       On
+Wait for referenced integrations:      On
+Startup settle:                         15 seconds
+Startup maximum wait:                  240 seconds
+Missing Repair grace:                  90 seconds
+Missing confirmations:                 3
 ```
 
-If the old generated entities remain resident in Home Assistant memory, the new entities are intentionally deferred and the migration reports **Restart Required**. This prevents `*_2` entity IDs and prevents two engines from controlling the same physical source. One additional Home Assistant restart completes the exact-ID takeover.
+# Configure startup and migration controls
 
-## Recommended first tour
+Open:
+
+```text
+Settings → Devices & services
+→ Eshtaya Smart Control
+→ Configure
+```
+
+Saving the options reloads the Eshtaya config entry automatically.
+
+## Legacy migration defaults
+
+For systems that already completed migration from the retired Eshtaya tools, use:
+
+```text
+Enable legacy Eshtaya migration: Off
+Legacy HACS cleanup:             Off
+Legacy service aliases:          Off
+```
+
+The individual old Entity Manager / Multi-Way / Template Manager selectors can remain enabled; they are inactive while the master Legacy Migration switch is Off.
+
+An already-started transactional cutover may still be allowed to finish after an upgrade so the system cannot be stranded halfway through a previous migration.
+
+## Native Home Assistant Groups remain available
+
+Native/UI-created Home Assistant Group discovery and transactional Take Over are **not** legacy Eshtaya migration. They remain available when Legacy Migration is Off.
+
+# If an old Template Manager cutover is still in progress
+
+If a previous migration is already at:
+
+```text
+restart_required
+```
+
+perform the required Home Assistant restart. The unified Template Manager keeps the replacement entities deferred until the retired runtime releases the exact entity IDs, preventing `*_2` duplicates.
+
+For a system where this migration has already completed, leave Legacy Migration Off.
+
+# Recommended first tour
 
 Review the platform in this order:
 
-1. **Dashboard** — health score and module status.
+1. **Dashboard** — health score and startup/module status.
 2. **Entity & Alexa Control** — entity rules and hidden-entity files.
 3. **Tuya Control** — activate only if direct cloud management is needed.
-4. **Multi-Way** — verify groups and health.
-5. **Template Manager** — verify Managed / Available / Missing and migration state.
-6. **System Center** — diagnostics, migration, reports, and repairs.
+4. **Multi-Way** — verify groups and the startup state.
+5. **Template Manager** — verify Managed / Available / Missing.
+6. **System Center** — startup barrier, diagnostics, migration history, reports and repairs.
 7. **Access Control** — verify end-user permissions before handover.
 
-## Access layers
+# Access layers
 
 There are two different access layers:
 
@@ -87,13 +136,15 @@ There are two different access layers:
 
 Granting `template.manage`, for example, does not make a user a Home Assistant Administrator.
 
-## Before handover
+# Before handover
 
 A production installation should have:
 
+- startup barrier reaches `ready` after restart;
+- no false missing-output Repairs during provider restore;
 - no unexplained migration error;
-- no unintended Missing template source;
-- healthy Multi-Way/Smart Group behavior;
+- no unintended Missing Template source;
+- healthy Multi-Way/Smart Group behavior after startup settles;
 - synchronized Alexa hidden-entity files;
 - permissions tested with a real non-admin account;
 - a current Home Assistant backup.
