@@ -11,7 +11,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: topics
   hassfest:
     runs-on: ubuntu-latest
     steps:
@@ -41,7 +40,7 @@ jobs:
           ]:
               json.loads(path.read_text(encoding="utf-8"))
           PY
-      - name: Verify v2.4.1 startup, migration and UI safety invariants
+      - name: Verify v2.4.2 startup, migration, managed-package and UI safety invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -54,8 +53,12 @@ jobs:
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           if "tuya" not in manifest.get("after_dependencies", []):
               raise SystemExit("manifest must keep official Tuya as an after_dependency")
-          if manifest.get("version") != "2.4.1":
+          if manifest.get("version") != "2.4.2":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
+          if manifest.get("documentation") != "https://github.com/badereshtaya/eshtaya-smart-control":
+              raise SystemExit("manifest documentation URL must use the renamed repository")
+          if manifest.get("issue_tracker") != "https://github.com/badereshtaya/eshtaya-smart-control/issues":
+              raise SystemExit("manifest issue tracker URL must use the renamed repository")
 
           constants = runpy.run_path(str(root / "const.py"))
           if constants.get("VERSION") != manifest.get("version"):
@@ -86,8 +89,8 @@ jobs:
                   raise SystemExit(f"startup safety invariant missing: {required_text}")
 
           panel = (root / "panel.py").read_text(encoding="utf-8")
-          if "smart-control-panel-v241.js" not in panel:
-              raise SystemExit("v2.4.1 frontend entrypoint is not loaded by panel.py")
+          if "smart-control-panel-v242.js" not in panel:
+              raise SystemExit("v2.4.2 frontend entrypoint is not loaded by panel.py")
 
           hotfix = (root / "frontend" / "smart-control-panel-v241-hotfix.js").read_text(encoding="utf-8")
           for required_text in (
@@ -98,6 +101,63 @@ jobs:
           ):
               if required_text not in hotfix:
                   raise SystemExit(f"v2.4.1 frontend invariant missing: {required_text}")
+
+          generated = (root / "template_manager" / "generated_package.py").read_text(encoding="utf-8")
+          for required_text in (
+              "packages/eshtaya_generated_lights.yaml",
+              "external_managed",
+              "eshtaya_smart_control_backups",
+              "template",
+              "reload",
+              ".esc-tmp",
+          ):
+              if required_text not in generated:
+                  raise SystemExit(f"generated-package invariant missing: {required_text}")
+
+          manager = (root / "template_manager" / "manager_v242.py").read_text(encoding="utf-8")
+          for required_text in (
+              "external_managed",
+              "generated_managed_count",
+              "deferred",
+              "prepared",
+              "restart_required",
+              "stale_state",
+          ):
+              if required_text not in manager:
+                  raise SystemExit(f"v2.4.2 Template Manager invariant missing: {required_text}")
+
+          settings = (root / "settings.py").read_text(encoding="utf-8")
+          for required_text in (
+              "settings/get",
+              "settings/update",
+              "legacy_migration_enabled",
+              "migrate_legacy_entity_manager",
+              "migrate_legacy_multiway",
+              "migrate_legacy_template_manager",
+              "legacy_hacs_cleanup",
+              "legacy_service_aliases",
+              "startup_wait_home_assistant",
+              "startup_wait_referenced_integrations",
+          ):
+              if required_text not in settings:
+                  raise SystemExit(f"runtime settings invariant missing: {required_text}")
+
+          root_init = (root / "__init__.py").read_text(encoding="utf-8")
+          for required_text in ("manager_v242", "async_register_settings_ws"):
+              if required_text not in root_init:
+                  raise SystemExit(f"v2.4.2 activation invariant missing: {required_text}")
+          if "add_update_listener(_entry_updated)" in root_init:
+              raise SystemExit("deprecated options reload listener must not return")
+
+          runtime_ui = (root / "frontend" / "runtime-settings-panel.js").read_text(encoding="utf-8")
+          for required_text in (
+              "Legacy migration controls",
+              "legacy_migration_enabled",
+              "settings/update",
+              "generated YAML packages are managed automatically",
+          ):
+              if required_text not in runtime_ui:
+                  raise SystemExit(f"runtime settings UI invariant missing: {required_text}")
 
           websocket = (root / "websocket_v22.py").read_text(encoding="utf-8")
           for required_text in ("documentation/get", "websocket_documentation_get", "docs.view"):
@@ -158,7 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(python -c 'import json; print(json.load(open("custom_components/eshtaya_smart_control/manifest.json"))["version"])')"
-          ARCHIVE="hacs-eshtaya-smart-control-v${VERSION}.zip"
+          ARCHIVE="eshtaya-smart-control-v${VERSION}.zip"
           zip -r "$ARCHIVE" \
             custom_components \
             docs \
