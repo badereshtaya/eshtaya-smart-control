@@ -71,6 +71,19 @@ class TemplateManager(_V242TemplateManager):
         if stored or occupied:
             raise ValueError(f"Entity ID is already in use: {new_entity}")
 
+    def _validate_external_unique_id(
+        self, *, old_entity: str, template_type: str, unique_id: str
+    ) -> None:
+        unique_id = unique_id.strip()
+        if not unique_id:
+            return
+        registry = er.async_get(self.hass)
+        existing_entity = registry.async_get_entity_id(template_type, "template", unique_id)
+        if existing_entity and existing_entity != old_entity:
+            raise ValueError(
+                f"Unique ID is already in use by {existing_entity}: {unique_id}"
+            )
+
     async def _async_save_native(
         self,
         record: dict[str, Any],
@@ -106,6 +119,9 @@ class TemplateManager(_V242TemplateManager):
         updated["type"] = template_type
         updated["name"] = name.strip() or entity_id
         updated["source_entity"] = source_entity
+        # Native Eshtaya records keep their integration-owned unique ID. Changing it
+        # would require replacing the runtime entity object, so it is intentionally
+        # read-only in the UI while every functional field remains editable.
         updated["unique_id"] = str(updated.get("unique_id") or f"esc_template::{old_entity}")
         await self.store.async_upsert(updated)
         async_dispatcher_send(self.hass, SIGNAL_TEMPLATE_CHANGED)
@@ -123,17 +139,24 @@ class TemplateManager(_V242TemplateManager):
         name: str,
         entity_id: str,
         source_entity: str,
+        unique_id: str,
         definition_yaml: str,
     ) -> dict[str, Any]:
         old_entity = str(record["entity_id"])
         old_type = str(record.get("type") or old_entity.split(".", 1)[0])
         old_unique_id = str(record.get("unique_id") or "")
+        self._validate_external_unique_id(
+            old_entity=old_entity,
+            template_type=template_type,
+            unique_id=unique_id,
+        )
         transaction = await self.generated_packages.async_save_definition(
             record,
             template_type=template_type,
             name=name,
             entity_id=entity_id,
             source_entity=source_entity,
+            unique_id=unique_id,
             definition_yaml=definition_yaml,
         )
         new_unique_id = str(transaction.get("unique_id") or "")
@@ -183,6 +206,7 @@ class TemplateManager(_V242TemplateManager):
         name: str,
         entity_id: str,
         source_entity: str,
+        unique_id: str = "",
         definition_yaml: str = "",
     ) -> dict[str, Any]:
         self._ensure_mutation_allowed()
@@ -208,6 +232,7 @@ class TemplateManager(_V242TemplateManager):
                 name=name,
                 entity_id=entity_id,
                 source_entity=source_entity,
+                unique_id=unique_id,
                 definition_yaml=definition_yaml,
             )
         else:
