@@ -26,6 +26,71 @@ jobs:
           python-version: '3.13'
       - name: Compile Python
         run: python -m compileall -q custom_components/eshtaya_smart_control
+      - name: Validate JSON metadata and translations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in [
+              Path("custom_components/eshtaya_smart_control/manifest.json"),
+              Path("custom_components/eshtaya_smart_control/strings.json"),
+              Path("custom_components/eshtaya_smart_control/translations/en.json"),
+              Path("custom_components/eshtaya_smart_control/translations/ar.json"),
+          ]:
+              json.loads(path.read_text(encoding="utf-8"))
+          PY
+      - name: Verify v2.4 startup and migration safety invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import json
+          from pathlib import Path
+
+          root = Path("custom_components/eshtaya_smart_control")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          if "tuya" not in manifest.get("after_dependencies", []):
+              raise SystemExit("manifest must keep official Tuya as an after_dependency")
+          if manifest.get("version") != "2.4.0":
+              raise SystemExit(f"unexpected release version: {manifest.get('version')}")
+
+          const_source = (root / "const.py").read_text(encoding="utf-8")
+          tree = ast.parse(const_source)
+          values = {}
+          for node in tree.body:
+              if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                  try:
+                      values[node.target.id] = ast.literal_eval(node.value)
+                  except Exception:
+                      pass
+          defaults = values.get("DEFAULT_OPTIONS")
+          if not isinstance(defaults, dict):
+              raise SystemExit("DEFAULT_OPTIONS must remain a literal dict for CI verification")
+          required = {
+              "startup_wait_home_assistant": True,
+              "startup_wait_referenced_integrations": True,
+              "legacy_migration_enabled": False,
+              "legacy_hacs_cleanup": False,
+              "legacy_service_aliases": False,
+          }
+          for key, expected in required.items():
+              if defaults.get(key) is not expected:
+                  raise SystemExit(f"unsafe default {key}={defaults.get(key)!r}; expected {expected!r}")
+
+          startup = (root / "multiway" / "startup_safe_manager.py").read_text(encoding="utf-8")
+          for required_text in (
+              "EVENT_HOMEASSISTANT_STARTED",
+              "_async_startup_barrier",
+              "CONF_REPAIR_GRACE_SECONDS",
+              "CONF_REPAIR_CONFIRMATIONS",
+              "_clear_transient_missing_issues",
+          ):
+              if required_text not in startup:
+                  raise SystemExit(f"startup safety invariant missing: {required_text}")
+          PY
       - name: Verify packaged documentation is byte-identical to GitHub docs
         shell: bash
         run: |
