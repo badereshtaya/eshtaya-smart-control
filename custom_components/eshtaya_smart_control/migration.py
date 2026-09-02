@@ -1,4 +1,4 @@
-"""Safe first-run migration from legacy Eshtaya integrations."""
+"""Safe opt-in migration from legacy Eshtaya integrations."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -74,10 +74,23 @@ def _has_payload(data: Any) -> bool:
 
 
 class LegacyMigrationCoordinator:
-    """Move legacy data transactionally and retire legacy config entries."""
+    """Move only explicitly enabled legacy engines into the unified integration.
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    v2.4 makes this coordinator opt-in at the integration level. The two historical
+    engines are also selectable independently so disabling one can never unload,
+    copy or remove that engine's config entry/storage by accident.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        *,
+        migrate_entity_manager: bool = True,
+        migrate_multiway: bool = True,
+    ) -> None:
         self.hass = hass
+        self.migrate_entity_manager = bool(migrate_entity_manager)
+        self.migrate_multiway = bool(migrate_multiway)
         self._store: Store[dict[str, Any]] = Store(
             hass, MIGRATION_VERSION, MIGRATION_STORE_KEY, atomic_writes=True
         )
@@ -86,30 +99,55 @@ class LegacyMigrationCoordinator:
         )
         self.state: dict[str, Any] = {}
 
+    def selection(self) -> dict[str, bool]:
+        return {
+            "entity_manager": self.migrate_entity_manager,
+            "multiway": self.migrate_multiway,
+        }
+
     async def async_prepare(self) -> dict[str, Any]:
-        """Detect legacy integrations, back them up, and copy storage if safe."""
+        """Detect selected legacy integrations, back them up, and copy storage safely."""
         saved = await self._store.async_load()
         if isinstance(saved, dict) and saved.get("completed"):
             self.state = saved
+            self.state.setdefault("selection", self.selection())
             return deepcopy(self.state)
 
-        entity_entries = self.hass.config_entries.async_entries(LEGACY_ENTITY_DOMAIN)
-        multiway_entries = self.hass.config_entries.async_entries(LEGACY_MULTIWAY_DOMAIN)
+        entity_entries = (
+            self.hass.config_entries.async_entries(LEGACY_ENTITY_DOMAIN)
+            if self.migrate_entity_manager
+            else []
+        )
+        multiway_entries = (
+            self.hass.config_entries.async_entries(LEGACY_MULTIWAY_DOMAIN)
+            if self.migrate_multiway
+            else []
+        )
         entries = [*entity_entries, *multiway_entries]
 
-        legacy_entity = await Store(
-            self.hass, 1, LEGACY_ENTITY_STORAGE_KEY
-        ).async_load()
-        legacy_multiway = await Store(
-            self.hass, MULTIWAY_STORAGE_VERSION, LEGACY_MULTIWAY_STORAGE_KEY
-        ).async_load()
-        legacy_smart = await Store(
-            self.hass, SMART_STORAGE_VERSION, LEGACY_SMART_STORAGE_KEY
-        ).async_load()
+        legacy_entity = None
+        if self.migrate_entity_manager:
+            legacy_entity = await Store(
+                self.hass, 1, LEGACY_ENTITY_STORAGE_KEY
+            ).async_load()
 
-        legacy_found = bool(entries) or any(
-            _has_payload(item) for item in (legacy_entity, legacy_multiway, legacy_smart)
-        )
+        legacy_multiway = None
+        legacy_smart = None
+        if self.migrate_multiway:
+            legacy_multiway = await Store(
+                self.hass, MULTIWAY_STORAGE_VERSION, LEGACY_MULTIWAY_STORAGE_KEY
+            ).async_load()
+            legacy_smart = await Store(
+                self.hass, SMART_STORAGE_VERSION, LEGACY_SMART_STORAGE_KEY
+            ).async_load()
+
+        selected_payloads = []
+        if self.migrate_entity_manager:
+            selected_payloads.append(legacy_entity)
+        if self.migrate_multiway:
+            selected_payloads.extend((legacy_multiway, legacy_smart))
+
+        legacy_found = bool(entries) or any(_has_payload(item) for item in selected_payloads)
         if not legacy_found:
             self.state = {
                 "version": MIGRATION_VERSION,
@@ -117,6 +155,7 @@ class LegacyMigrationCoordinator:
                 "phase": "no_legacy",
                 "completed_at": _utcnow(),
                 "legacy_found": False,
+                "selection": self.selection(),
                 "removed_entries": [],
             }
             await self._store.async_save(self.state)
@@ -125,10 +164,11 @@ class LegacyMigrationCoordinator:
         backup = {
             "version": MIGRATION_VERSION,
             "created_at": _utcnow(),
+            "selection": self.selection(),
             "entries": [_entry_snapshot(entry) for entry in entries],
-            "entity_control": deepcopy(legacy_entity),
-            "multiway": deepcopy(legacy_multiway),
-            "smart_groups": deepcopy(legacy_smart),
+            "entity_control": deepcopy(legacy_entity) if self.migrate_entity_manager else None,
+            "multiway": deepcopy(legacy_multiway) if self.migrate_multiway else None,
+            "smart_groups": deepcopy(legacy_smart) if self.migrate_multiway else None,
         }
         await self._backup_store.async_save(backup)
 
@@ -138,30 +178,32 @@ class LegacyMigrationCoordinator:
             "smart_groups": False,
         }
 
-        new_entity_store = Store(self.hass, 1, ENTITY_STORAGE_KEY, atomic_writes=True)
-        new_entity = await new_entity_store.async_load()
-        if _has_payload(legacy_entity) and not _has_payload(new_entity):
-            await new_entity_store.async_save(deepcopy(legacy_entity))
-            copied["entity_control"] = True
+        if self.migrate_entity_manager:
+            new_entity_store = Store(self.hass, 1, ENTITY_STORAGE_KEY, atomic_writes=True)
+            new_entity = await new_entity_store.async_load()
+            if _has_payload(legacy_entity) and not _has_payload(new_entity):
+                await new_entity_store.async_save(deepcopy(legacy_entity))
+                copied["entity_control"] = True
 
-        new_multiway_store = Store(
-            self.hass,
-            MULTIWAY_STORAGE_VERSION,
-            MULTIWAY_STORAGE_KEY,
-            atomic_writes=True,
-        )
-        new_multiway = await new_multiway_store.async_load()
-        if _has_payload(legacy_multiway) and not _has_payload(new_multiway):
-            await new_multiway_store.async_save(deepcopy(legacy_multiway))
-            copied["multiway"] = True
+        if self.migrate_multiway:
+            new_multiway_store = Store(
+                self.hass,
+                MULTIWAY_STORAGE_VERSION,
+                MULTIWAY_STORAGE_KEY,
+                atomic_writes=True,
+            )
+            new_multiway = await new_multiway_store.async_load()
+            if _has_payload(legacy_multiway) and not _has_payload(new_multiway):
+                await new_multiway_store.async_save(deepcopy(legacy_multiway))
+                copied["multiway"] = True
 
-        new_smart_store = Store(
-            self.hass, SMART_STORAGE_VERSION, SMART_STORAGE_KEY, atomic_writes=True
-        )
-        new_smart = await new_smart_store.async_load()
-        if _has_payload(legacy_smart) and not _has_payload(new_smart):
-            await new_smart_store.async_save(deepcopy(legacy_smart))
-            copied["smart_groups"] = True
+            new_smart_store = Store(
+                self.hass, SMART_STORAGE_VERSION, SMART_STORAGE_KEY, atomic_writes=True
+            )
+            new_smart = await new_smart_store.async_load()
+            if _has_payload(legacy_smart) and not _has_payload(new_smart):
+                await new_smart_store.async_save(deepcopy(legacy_smart))
+                copied["smart_groups"] = True
 
         self.state = {
             "version": MIGRATION_VERSION,
@@ -169,12 +211,13 @@ class LegacyMigrationCoordinator:
             "phase": "prepared",
             "prepared_at": _utcnow(),
             "legacy_found": True,
+            "selection": self.selection(),
             "entries": [_entry_snapshot(entry) for entry in entries],
             "copied": copied,
             "expected": {
-                "entity_rules": _count_entity_rules(legacy_entity),
-                "multiway_groups": _count_groups(legacy_multiway),
-                "smart_groups": _count_groups(legacy_smart),
+                "entity_rules": _count_entity_rules(legacy_entity) if self.migrate_entity_manager else 0,
+                "multiway_groups": _count_groups(legacy_multiway) if self.migrate_multiway else 0,
+                "smart_groups": _count_groups(legacy_smart) if self.migrate_multiway else 0,
             },
             "backup_store": MIGRATION_BACKUP_KEY,
             "removed_entries": [],
@@ -184,12 +227,20 @@ class LegacyMigrationCoordinator:
         return deepcopy(self.state)
 
     async def async_quiesce_legacy(self) -> dict[str, Any]:
-        """Unload active legacy engines without deleting anything yet."""
+        """Unload only selected active legacy engines without deleting anything yet."""
         if self.state.get("completed") or not self.state.get("legacy_found"):
             return deepcopy(self.state)
 
+        allowed_domains: set[str] = set()
+        if self.migrate_entity_manager:
+            allowed_domains.add(LEGACY_ENTITY_DOMAIN)
+        if self.migrate_multiway:
+            allowed_domains.add(LEGACY_MULTIWAY_DOMAIN)
+
         disabled_by_us: list[str] = []
         for item in self.state.get("entries", []):
+            if item.get("domain") not in allowed_domains:
+                continue
             entry_id = item.get("entry_id")
             if not entry_id or item.get("disabled_by") is not None:
                 continue
@@ -210,12 +261,12 @@ class LegacyMigrationCoordinator:
         return deepcopy(self.state)
 
     async def async_validate(self, runtime: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Verify that migrated data is available in the new integration."""
+        """Verify that selected migrated data is available in the new integration."""
         expected = self.state.get("expected") or {}
         errors: list[str] = []
 
-        entity_data = await Store(self.hass, 1, ENTITY_STORAGE_KEY).async_load()
-        if self.state.get("copied", {}).get("entity_control"):
+        if self.migrate_entity_manager and self.state.get("copied", {}).get("entity_control"):
+            entity_data = await Store(self.hass, 1, ENTITY_STORAGE_KEY).async_load()
             actual = _count_entity_rules(entity_data)
             wanted = int(expected.get("entity_rules") or 0)
             if actual < wanted:
@@ -225,13 +276,13 @@ class LegacyMigrationCoordinator:
         multi_store = runtime.get("store")
         smart_store = runtime.get("smart_store")
 
-        if self.state.get("copied", {}).get("multiway"):
+        if self.migrate_multiway and self.state.get("copied", {}).get("multiway"):
             actual = len(multi_store.groups()) if multi_store else -1
             wanted = int(expected.get("multiway_groups") or 0)
             if actual < wanted:
                 errors.append(f"Multi-Way groups: expected {wanted}, got {actual}")
 
-        if self.state.get("copied", {}).get("smart_groups"):
+        if self.migrate_multiway and self.state.get("copied", {}).get("smart_groups"):
             actual = len(smart_store.groups()) if smart_store else -1
             wanted = int(expected.get("smart_groups") or 0)
             if actual < wanted:
@@ -250,15 +301,23 @@ class LegacyMigrationCoordinator:
         return deepcopy(result)
 
     async def async_finalize(self, runtime: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Remove legacy config entries only after successful validation."""
+        """Remove selected legacy config entries only after successful validation."""
         if self.state.get("completed"):
             return deepcopy(self.state)
         validation = self.state.get("validation") or {}
         if not validation.get("ok"):
             raise RuntimeError("Legacy migration cannot finalize before successful validation")
 
+        allowed_domains: set[str] = set()
+        if self.migrate_entity_manager:
+            allowed_domains.add(LEGACY_ENTITY_DOMAIN)
+        if self.migrate_multiway:
+            allowed_domains.add(LEGACY_MULTIWAY_DOMAIN)
+
         removed: list[dict[str, Any]] = []
         for item in self.state.get("entries", []):
+            if item.get("domain") not in allowed_domains:
+                continue
             entry_id = item.get("entry_id")
             if not entry_id:
                 continue
@@ -267,7 +326,7 @@ class LegacyMigrationCoordinator:
                 continue
             try:
                 result = await self.hass.config_entries.async_remove(entry_id)
-            except Exception as err:  # noqa: BLE001 - preserve migration state for recovery
+            except Exception as err:  # noqa: BLE001
                 _LOGGER.exception("Failed to remove legacy config entry %s", entry_id)
                 self.state["phase"] = "cleanup_partial"
                 self.state.setdefault("errors", []).append(f"Remove {entry_id}: {err}")
@@ -275,11 +334,10 @@ class LegacyMigrationCoordinator:
                 raise
             removed.append({"entry_id": entry_id, "domain": item.get("domain"), "result": result})
 
-        # Legacy Multi-Way removal may release registry visibility it owned.
-        # Reconcile once more so the new Smart Group engine becomes the owner.
+        # Only a selected legacy Multi-Way cutover can transfer visibility ownership.
         runtime = runtime or {}
         smart_manager = runtime.get("smart_manager")
-        if smart_manager is not None:
+        if self.migrate_multiway and smart_manager is not None:
             await smart_manager.async_reload()
 
         self.state["removed_entries"] = removed
@@ -290,7 +348,7 @@ class LegacyMigrationCoordinator:
         return deepcopy(self.state)
 
     async def async_rollback(self, reason: str) -> dict[str, Any]:
-        """Re-enable legacy entries disabled by this migration when cutover fails."""
+        """Re-enable legacy entries disabled by this selected migration."""
         restored: list[str] = []
         for entry_id in self.state.get("disabled_by_migration", []):
             entry = self.hass.config_entries.async_get_entry(entry_id)
@@ -319,6 +377,7 @@ class LegacyMigrationCoordinator:
             "legacy_found": bool(data.get("legacy_found")),
             "completed": bool(data.get("completed")),
             "phase": data.get("phase", "not_started"),
+            "selection": deepcopy(data.get("selection") or self.selection()),
             "prepared_at": data.get("prepared_at"),
             "completed_at": data.get("completed_at"),
             "copied": deepcopy(data.get("copied") or {}),
