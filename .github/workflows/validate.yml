@@ -40,7 +40,7 @@ jobs:
           ]:
               json.loads(path.read_text(encoding="utf-8"))
           PY
-      - name: Verify v2.4.2 startup, migration, managed-package and UI safety invariants
+      - name: Verify v2.4.3 startup, migration, full-editor and UI safety invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -53,7 +53,7 @@ jobs:
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           if "tuya" not in manifest.get("after_dependencies", []):
               raise SystemExit("manifest must keep official Tuya as an after_dependency")
-          if manifest.get("version") != "2.4.2":
+          if manifest.get("version") != "2.4.3":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
           if manifest.get("documentation") != "https://github.com/badereshtaya/eshtaya-smart-control":
               raise SystemExit("manifest documentation URL must use the renamed repository")
@@ -89,8 +89,25 @@ jobs:
                   raise SystemExit(f"startup safety invariant missing: {required_text}")
 
           panel = (root / "panel.py").read_text(encoding="utf-8")
-          if "smart-control-panel-v242.js" not in panel:
-              raise SystemExit("v2.4.2 frontend entrypoint is not loaded by panel.py")
+          if "smart-control-panel-v243.js" not in panel:
+              raise SystemExit("v2.4.3 frontend entrypoint is not loaded by panel.py")
+
+          frontend_entry = (root / "frontend" / "smart-control-panel-v243.js").read_text(encoding="utf-8")
+          if "template-manager-editor-v243.js" not in frontend_entry:
+              raise SystemExit("v2.4.3 Template Manager editor extension is not loaded")
+
+          editor_ui = (root / "frontend" / "template-manager-editor-v243.js").read_text(encoding="utf-8")
+          for required_text in (
+              "template/editor/get",
+              "template/editor/save",
+              "Advanced YAML",
+              "definition_yaml",
+              "unique_id",
+              "Save all changes",
+              "mutation_locked",
+          ):
+              if required_text not in editor_ui:
+                  raise SystemExit(f"v2.4.3 editor UI invariant missing: {required_text}")
 
           hotfix = (root / "frontend" / "smart-control-panel-v241-hotfix.js").read_text(encoding="utf-8")
           for required_text in (
@@ -114,8 +131,22 @@ jobs:
               if required_text not in generated:
                   raise SystemExit(f"generated-package invariant missing: {required_text}")
 
+          full_generated = (root / "template_manager" / "generated_package_v243.py").read_text(encoding="utf-8")
+          for required_text in (
+              "definition_yaml",
+              "yaml.safe_load",
+              "_move_type",
+              "_set_unique_id",
+              "async_restore",
+              "previous_text",
+          ):
+              if required_text not in full_generated:
+                  raise SystemExit(f"v2.4.3 generated-package editor invariant missing: {required_text}")
+
           manager = (root / "template_manager" / "manager_v242.py").read_text(encoding="utf-8")
           for required_text in (
+              "FullTemplateEditorMixin",
+              "GeneratedPackageManager",
               "external_managed",
               "generated_managed_count",
               "deferred",
@@ -124,7 +155,30 @@ jobs:
               "stale_state",
           ):
               if required_text not in manager:
-                  raise SystemExit(f"v2.4.2 Template Manager invariant missing: {required_text}")
+                  raise SystemExit(f"Template Manager activation invariant missing: {required_text}")
+
+          editor = (root / "template_manager" / "editor_v243.py").read_text(encoding="utf-8")
+          for required_text in (
+              "async_editor_get",
+              "async_editor_save",
+              "async_get_entity_id",
+              "definition_yaml",
+              "async_restore",
+              "SIGNAL_TEMPLATE_CHANGED",
+          ):
+              if required_text not in editor:
+                  raise SystemExit(f"v2.4.3 editor backend invariant missing: {required_text}")
+
+          template_ws = (root / "template_manager" / "websocket.py").read_text(encoding="utf-8")
+          for required_text in (
+              "template/editor/get",
+              "template/editor/save",
+              "websocket_editor_get",
+              "websocket_editor_save",
+              "template.manage",
+          ):
+              if required_text not in template_ws:
+                  raise SystemExit(f"v2.4.3 Template Manager WebSocket invariant missing: {required_text}")
 
           settings = (root / "settings.py").read_text(encoding="utf-8")
           for required_text in (
@@ -145,7 +199,7 @@ jobs:
           root_init = (root / "__init__.py").read_text(encoding="utf-8")
           for required_text in ("manager_v242", "async_register_settings_ws"):
               if required_text not in root_init:
-                  raise SystemExit(f"v2.4.2 activation invariant missing: {required_text}")
+                  raise SystemExit(f"activation invariant missing: {required_text}")
           if "add_update_listener(_entry_updated)" in root_init:
               raise SystemExit("deprecated options reload listener must not return")
 
