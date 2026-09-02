@@ -5,7 +5,7 @@ from typing import Final
 
 DOMAIN: Final = "eshtaya_smart_control"
 NAME: Final = "Eshtaya Smart Control"
-VERSION: Final = "2.3.1"
+VERSION: Final = "2.4.0"
 MANUFACTURER: Final = "Eshtaya Smart"
 
 DATA_ENTRY: Final = "entry"
@@ -14,6 +14,7 @@ DATA_TUYA_MANAGER: Final = "tuya_manager"
 DATA_MIGRATION: Final = "migration"
 DATA_SYSTEM: Final = "system"
 DATA_ACCESS_CONTROL: Final = "access_control"
+DATA_STARTUP_STATUS: Final = "startup_status"
 
 PANEL_URL: Final = "eshtaya-smart-control"
 PANEL_ELEMENT: Final = "eshtaya-smart-control-panel"
@@ -28,6 +29,44 @@ CONF_TUYA_CLIENT_SECRET: Final = "tuya_client_secret"
 CONF_TUYA_UID: Final = "tuya_uid"
 CONF_TUYA_ACTIVATED_AT: Final = "tuya_activated_at"
 CONF_TUYA_UPDATED_AT: Final = "tuya_updated_at"
+
+# Runtime/startup safety options.
+CONF_STARTUP_WAIT_HA: Final = "startup_wait_home_assistant"
+CONF_STARTUP_WAIT_REFERENCES: Final = "startup_wait_referenced_integrations"
+CONF_STARTUP_SETTLE_SECONDS: Final = "startup_settle_seconds"
+CONF_STARTUP_MAX_WAIT_SECONDS: Final = "startup_max_wait_seconds"
+CONF_REPAIR_GRACE_SECONDS: Final = "repair_grace_seconds"
+CONF_REPAIR_CONFIRMATIONS: Final = "repair_missing_confirmations"
+
+# Legacy migration controls. These do not control discovery/takeover of native
+# Home Assistant Group helpers; that feature remains independent.
+CONF_LEGACY_MIGRATION_ENABLED: Final = "legacy_migration_enabled"
+CONF_MIGRATE_ENTITY_MANAGER: Final = "migrate_legacy_entity_manager"
+CONF_MIGRATE_MULTIWAY: Final = "migrate_legacy_multiway"
+CONF_MIGRATE_TEMPLATE_MANAGER: Final = "migrate_legacy_template_manager"
+CONF_LEGACY_HACS_CLEANUP: Final = "legacy_hacs_cleanup"
+CONF_LEGACY_SERVICE_ALIASES: Final = "legacy_service_aliases"
+CONF_NATIVE_GROUP_DISCOVERY: Final = "native_group_discovery"
+
+DEFAULT_OPTIONS: Final = {
+    # Startup safety: do not diagnose missing entities until Home Assistant and
+    # the integrations that own referenced entities have settled.
+    CONF_STARTUP_WAIT_HA: True,
+    CONF_STARTUP_WAIT_REFERENCES: True,
+    CONF_STARTUP_SETTLE_SECONDS: 15,
+    CONF_STARTUP_MAX_WAIT_SECONDS: 240,
+    CONF_REPAIR_GRACE_SECONDS: 90,
+    CONF_REPAIR_CONFIRMATIONS: 3,
+    # Legacy migrations are now opt-in. Existing completed migration data remains
+    # untouched; normal Home Assistant discovery/import features stay enabled.
+    CONF_LEGACY_MIGRATION_ENABLED: False,
+    CONF_MIGRATE_ENTITY_MANAGER: True,
+    CONF_MIGRATE_MULTIWAY: True,
+    CONF_MIGRATE_TEMPLATE_MANAGER: True,
+    CONF_LEGACY_HACS_CLEANUP: False,
+    CONF_LEGACY_SERVICE_ALIASES: False,
+    CONF_NATIVE_GROUP_DISCOVERY: True,
+}
 
 TUYA_REGION_ENDPOINTS: Final = {
     "eu": "https://openapi.tuyaeu.com",
