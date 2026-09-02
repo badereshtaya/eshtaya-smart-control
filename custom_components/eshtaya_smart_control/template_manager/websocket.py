@@ -26,6 +26,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
         websocket_scan,
         websocket_create,
         websocket_edit,
+        websocket_editor_get,
+        websocket_editor_save,
         websocket_delete,
         websocket_relink,
         websocket_migration,
@@ -85,6 +87,52 @@ async def websocket_edit(hass: HomeAssistant, connection, msg: dict[str, Any]) -
     try:
         result = await _manager(hass).async_edit(
             managed_entity=msg["managed_entity"], name=msg["name"], entity_id=msg["entity_id"]
+        )
+        connection.send_result(msg["id"], result)
+    except ValueError as err:
+        connection.send_error(msg["id"], "template_invalid", str(err))
+
+
+@require_permission("template.view")
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template/editor/get",
+        vol.Required("managed_entity"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_editor_get(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    try:
+        result = await _manager(hass).async_editor_get(msg["managed_entity"])
+        connection.send_result(msg["id"], result)
+    except ValueError as err:
+        connection.send_error(msg["id"], "template_invalid", str(err))
+
+
+@require_permission("template.manage")
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template/editor/save",
+        vol.Required("managed_entity"): str,
+        vol.Required("template_type"): vol.In(["light", "fan"]),
+        vol.Required("name"): str,
+        vol.Required("entity_id"): str,
+        vol.Required("source_entity"): str,
+        vol.Optional("unique_id", default=""): str,
+        vol.Optional("definition_yaml", default=""): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_editor_save(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
+    try:
+        result = await _manager(hass).async_editor_save(
+            managed_entity=msg["managed_entity"],
+            template_type=msg["template_type"],
+            name=msg["name"],
+            entity_id=msg["entity_id"],
+            source_entity=msg["source_entity"],
+            unique_id=msg.get("unique_id", ""),
+            definition_yaml=msg.get("definition_yaml", ""),
         )
         connection.send_result(msg["id"], result)
     except ValueError as err:
