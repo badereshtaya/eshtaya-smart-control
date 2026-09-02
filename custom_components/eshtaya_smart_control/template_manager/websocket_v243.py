@@ -50,6 +50,7 @@ async def websocket_editor_get(hass: HomeAssistant, connection, msg: dict[str, A
         vol.Required("name"): str,
         vol.Required("entity_id"): str,
         vol.Required("source_entity"): str,
+        vol.Optional("unique_id", default=""): str,
         vol.Optional("definition_yaml", default=""): str,
     }
 )
@@ -62,6 +63,7 @@ async def websocket_editor_save(hass: HomeAssistant, connection, msg: dict[str, 
             name=msg["name"],
             entity_id=msg["entity_id"],
             source_entity=msg["source_entity"],
+            unique_id=msg.get("unique_id", ""),
             definition_yaml=msg.get("definition_yaml", ""),
         )
         connection.send_result(msg["id"], result)
