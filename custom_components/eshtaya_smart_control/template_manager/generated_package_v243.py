@@ -61,7 +61,7 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
             "name": str(node.get("name") or record.get("name") or entity_id),
             "entity_id": self._node_entity_id(node) or entity_id,
             "source_entity": source,
-            "unique_id": str(node.get("unique_id") or record.get("unique_id") or ""),
+            "unique_id": str(node.get("unique_id") or ""),
             "definition_yaml": self._dump_definition(deepcopy(node)),
             "generated_path": str(path),
         }
@@ -78,6 +78,14 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
             node["entity_id"] = entity_id
         else:
             node["default_entity_id"] = entity_id
+
+    @staticmethod
+    def _set_unique_id(node: dict[str, Any], unique_id: str) -> None:
+        unique_id = unique_id.strip()
+        if unique_id:
+            node["unique_id"] = unique_id
+        else:
+            node.pop("unique_id", None)
 
     @classmethod
     def _move_type(
@@ -124,6 +132,7 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
         name: str,
         entity_id: str,
         source_entity: str,
+        unique_id: str,
         definition_yaml: str,
     ) -> dict[str, Any]:
         old_entity = str(record["entity_id"])
@@ -131,6 +140,7 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
         template_type = template_type.strip().lower()
         entity_id = entity_id.strip()
         source_entity = source_entity.strip()
+        unique_id = unique_id.strip()
 
         if template_type not in _SUPPORTED_TYPES:
             raise ValueError(f"Unsupported template type: {template_type}")
@@ -150,7 +160,7 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
         location = self._find_typed_location(value, old_entity)
         if location is None:
             raise ValueError(f"Generated template not found in package: {old_entity}")
-        container, old_domain, entries, index, _old_node = location
+        container, old_domain, entries, index, old_node = location
 
         duplicate = self._find_typed_location(value, entity_id)
         if entity_id != old_entity and duplicate is not None:
@@ -166,7 +176,9 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
                 "Advanced YAML must reference the selected switch source in state/turn_on/turn_off or a service target"
             )
 
+        # Basic editor fields are authoritative. Advanced YAML owns every other key.
         self._set_entity_id(edited, entity_id)
+        self._set_unique_id(edited, unique_id)
         edited["name"] = name.strip() or entity_id
 
         if isinstance(entries, list) and index is not None:
@@ -182,8 +194,8 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
             # still safe, but a domain conversion cannot be represented unambiguously.
             if old_domain != template_type:
                 raise ValueError("Template type cannot be changed for this package layout")
-            _old_node.clear()
-            _old_node.update(edited)
+            old_node.clear()
+            old_node.update(edited)
             active_entries = None
             active_index = None
         else:
@@ -207,7 +219,7 @@ class GeneratedPackageManager(_BaseGeneratedPackageManager):
             "entity_id": entity_id,
             "old_type": old_domain,
             "template_type": template_type,
-            "unique_id": str(edited.get("unique_id") or record.get("unique_id") or ""),
+            "unique_id": unique_id,
         }
 
     async def async_save_definition(self, record: dict[str, Any], **changes: Any) -> dict[str, Any]:
