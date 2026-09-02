@@ -41,7 +41,7 @@ jobs:
           ]:
               json.loads(path.read_text(encoding="utf-8"))
           PY
-      - name: Verify v2.4 startup and migration safety invariants
+      - name: Verify v2.4.1 startup, migration and UI safety invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -54,7 +54,7 @@ jobs:
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           if "tuya" not in manifest.get("after_dependencies", []):
               raise SystemExit("manifest must keep official Tuya as an after_dependency")
-          if manifest.get("version") != "2.4.0":
+          if manifest.get("version") != "2.4.1":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
 
           constants = runpy.run_path(str(root / "const.py"))
@@ -84,6 +84,25 @@ jobs:
           ):
               if required_text not in startup:
                   raise SystemExit(f"startup safety invariant missing: {required_text}")
+
+          panel = (root / "panel.py").read_text(encoding="utf-8")
+          if "smart-control-panel-v241.js" not in panel:
+              raise SystemExit("v2.4.1 frontend entrypoint is not loaded by panel.py")
+
+          hotfix = (root / "frontend" / "smart-control-panel-v241-hotfix.js").read_text(encoding="utf-8")
+          for required_text in (
+              "documentation/get",
+              "[data-c]",
+              "this._language === next",
+              "selectionStart",
+          ):
+              if required_text not in hotfix:
+                  raise SystemExit(f"v2.4.1 frontend invariant missing: {required_text}")
+
+          websocket = (root / "websocket_v22.py").read_text(encoding="utf-8")
+          for required_text in ("documentation/get", "websocket_documentation_get", "docs.view"):
+              if required_text not in websocket:
+                  raise SystemExit(f"permission-aware documentation WebSocket invariant missing: {required_text}")
           PY
       - name: Verify packaged documentation is byte-identical to GitHub docs
         shell: bash
@@ -96,19 +115,32 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import runpy
           from pathlib import Path
-          expected = {
+
+          expected_files = {
               "GETTING_STARTED", "DASHBOARD", "ENTITY_CONTROL", "TUYA_CONTROL",
               "MULTIWAY", "SMART_GROUPS", "COMMISSIONING", "SYSTEM_CENTER",
               "ACCESS_CONTROL", "MIGRATION", "ARCHITECTURE", "SECURITY_AND_BACKUP",
               "TROUBLESHOOTING", "TEMPLATE_MANAGER",
           }
+          expected_slugs = (expected_files - {"SECURITY_AND_BACKUP"}) | {"SECURITY_BACKUP"}
+          root = Path("custom_components/eshtaya_smart_control")
           for language in ("ar", "en"):
-              found = {p.stem for p in Path("custom_components/eshtaya_smart_control/docs", language).glob("*.md")}
-              missing = sorted(expected - found)
-              extra = sorted(found - expected)
+              found = {p.stem for p in (root / "docs" / language).glob("*.md")}
+              missing = sorted(expected_files - found)
+              extra = sorted(found - expected_files)
               if missing or extra:
                   raise SystemExit(f"{language}: missing={missing} extra={extra}")
+
+          loaded = runpy.run_path(str(root / "documentation_v23.py"))["DOCUMENTATION"]
+          for language in ("ar", "en"):
+              found = set(loaded.get(language, {}))
+              if found != expected_slugs:
+                  raise SystemExit(f"{language}: loader slugs mismatch: {sorted(found)}")
+              empty = [slug for slug, text in loaded[language].items() if not str(text).strip()]
+              if empty:
+                  raise SystemExit(f"{language}: empty documentation pages: {empty}")
           PY
       - uses: actions/setup-node@v4
         with:
