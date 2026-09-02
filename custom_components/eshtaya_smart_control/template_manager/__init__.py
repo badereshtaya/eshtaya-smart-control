@@ -27,6 +27,14 @@ RELINK_SCHEMA = vol.Schema(
     {vol.Required("managed_entity"): str, vol.Required("source_entity"): str}
 )
 
+_LEGACY_SERVICES = (
+    "scan",
+    "create_template",
+    "edit_template",
+    "delete_template",
+    "relink",
+)
+
 
 def _manager(hass: HomeAssistant):
     manager = hass.data.get(DOMAIN, {}).get(DATA_TEMPLATE_MANAGER)
@@ -42,13 +50,20 @@ def _register(hass: HomeAssistant, service_domain: str, service: str, handler, s
         hass.services.async_register(service_domain, service, handler, schema=schema)
 
 
+def async_remove_legacy_services(hass: HomeAssistant) -> None:
+    """Remove compatibility aliases from the retired Template Manager domain."""
+    for service in _LEGACY_SERVICES:
+        if hass.services.has_service(LEGACY_DOMAIN, service):
+            hass.services.async_remove(LEGACY_DOMAIN, service)
+
+
 async def async_setup_services(
     hass: HomeAssistant,
     *,
     register_legacy: bool = False,
     replace_legacy: bool = False,
 ) -> None:
-    """Register unified services and, when safe, permanent legacy aliases."""
+    """Register unified services and, when explicitly enabled, legacy aliases."""
 
     async def scan(_call: ServiceCall) -> None:
         await _manager(hass).async_scan()
@@ -76,6 +91,7 @@ async def async_setup_services(
         _register(hass, DOMAIN, service, handler, schema)
 
     if not register_legacy:
+        async_remove_legacy_services(hass)
         return
 
     legacy = {
