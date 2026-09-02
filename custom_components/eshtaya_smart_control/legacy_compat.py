@@ -27,12 +27,17 @@ _SERVICE_SPECS = {
 }
 
 
-def async_register_legacy_service_aliases(hass: HomeAssistant) -> None:
-    """Replace stale legacy handlers and forward calls to Eshtaya Smart Control."""
-    for service, (schema, response_mode) in _SERVICE_SPECS.items():
+def async_remove_legacy_service_aliases(hass: HomeAssistant) -> None:
+    """Remove only compatibility services owned by the retired Multi-Way domain."""
+    for service in _SERVICE_SPECS:
         if hass.services.has_service(LEGACY_DOMAIN, service):
             hass.services.async_remove(LEGACY_DOMAIN, service)
 
+
+def async_register_legacy_service_aliases(hass: HomeAssistant) -> None:
+    """Replace stale legacy handlers and forward calls to Eshtaya Smart Control."""
+    async_remove_legacy_service_aliases(hass)
+    for service, (schema, response_mode) in _SERVICE_SPECS.items():
         async def _forward(call: ServiceCall, _service: str = service):
             return await hass.services.async_call(
                 DOMAIN,
