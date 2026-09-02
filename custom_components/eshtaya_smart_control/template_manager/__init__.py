@@ -90,8 +90,10 @@ async def async_setup_services(
     for service, (handler, schema) in unified.items():
         _register(hass, DOMAIN, service, handler, schema)
 
+    # Do not touch a real old Template Manager service domain unless a migration
+    # or explicit compatibility setting is managing it. This is important when
+    # legacy migration is disabled in v2.4.
     if not register_legacy:
-        async_remove_legacy_services(hass)
         return
 
     legacy = {
