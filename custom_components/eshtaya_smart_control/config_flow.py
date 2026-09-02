@@ -14,14 +14,12 @@ from .const import (
     CONF_MIGRATE_ENTITY_MANAGER,
     CONF_MIGRATE_MULTIWAY,
     CONF_MIGRATE_TEMPLATE_MANAGER,
-    CONF_NATIVE_GROUP_DISCOVERY,
     CONF_REPAIR_CONFIRMATIONS,
     CONF_REPAIR_GRACE_SECONDS,
     CONF_STARTUP_MAX_WAIT_SECONDS,
     CONF_STARTUP_SETTLE_SECONDS,
     CONF_STARTUP_WAIT_HA,
     CONF_STARTUP_WAIT_REFERENCES,
-    DEFAULT_OPTIONS,
     DOMAIN,
 )
 from .runtime_options import effective_options
@@ -49,12 +47,12 @@ class EshtayaSmartControlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class EshtayaSmartControlOptionsFlow(config_entries.OptionsFlowWithReload):
-    """Manage startup safety, native discovery and legacy migration controls."""
+    """Manage startup safety and opt-in legacy migration controls."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ):
-        """Edit all operational controls in one deterministic form."""
+        """Edit operational controls in one deterministic form."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
@@ -85,10 +83,6 @@ class EshtayaSmartControlOptionsFlow(config_entries.OptionsFlowWithReload):
                     CONF_REPAIR_CONFIRMATIONS,
                     default=current[CONF_REPAIR_CONFIRMATIONS],
                 ): vol.All(int, vol.Range(min=1, max=10)),
-                vol.Required(
-                    CONF_NATIVE_GROUP_DISCOVERY,
-                    default=current[CONF_NATIVE_GROUP_DISCOVERY],
-                ): bool,
                 vol.Required(
                     CONF_LEGACY_MIGRATION_ENABLED,
                     default=current[CONF_LEGACY_MIGRATION_ENABLED],
