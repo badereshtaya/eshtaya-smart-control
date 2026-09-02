@@ -1,6 +1,9 @@
 {
   "domain": "eshtaya_smart_control",
   "name": "Eshtaya Smart Control",
+  "after_dependencies": [
+    "tuya"
+  ],
   "codeowners": [
     "@badereshtaya"
   ],
@@ -11,9 +14,6 @@
     "http",
     "panel_custom",
     "websocket_api"
-  ],
-  "after_dependencies": [
-    "tuya"
   ],
   "documentation": "https://github.com/badereshtaya/hacs-eshtaya-smart-control",
   "integration_type": "service",
