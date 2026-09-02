@@ -46,8 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import ast
           import json
+          import runpy
           from pathlib import Path
 
           root = Path("custom_components/eshtaya_smart_control")
@@ -57,18 +57,12 @@ jobs:
           if manifest.get("version") != "2.4.0":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
 
-          const_source = (root / "const.py").read_text(encoding="utf-8")
-          tree = ast.parse(const_source)
-          values = {}
-          for node in tree.body:
-              if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                  try:
-                      values[node.target.id] = ast.literal_eval(node.value)
-                  except Exception:
-                      pass
-          defaults = values.get("DEFAULT_OPTIONS")
+          constants = runpy.run_path(str(root / "const.py"))
+          if constants.get("VERSION") != manifest.get("version"):
+              raise SystemExit("const.py VERSION and manifest version must match")
+          defaults = constants.get("DEFAULT_OPTIONS")
           if not isinstance(defaults, dict):
-              raise SystemExit("DEFAULT_OPTIONS must remain a literal dict for CI verification")
+              raise SystemExit("DEFAULT_OPTIONS is missing")
           required = {
               "startup_wait_home_assistant": True,
               "startup_wait_referenced_integrations": True,
