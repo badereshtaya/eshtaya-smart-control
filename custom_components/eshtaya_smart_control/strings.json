@@ -12,77 +12,79 @@
       "already_configured": "Eshtaya Smart Control is already configured."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Startup safety & legacy migration",
+        "description": "Control the v2.4 startup barrier and optional migration from retired Eshtaya integrations. Native Home Assistant Group discovery/takeover is independent and remains available.",
+        "data": {
+          "startup_wait_home_assistant": "Wait for Home Assistant startup",
+          "startup_wait_referenced_integrations": "Wait for integrations that own referenced Multi-Way entities",
+          "startup_settle_seconds": "Quiet settle window after providers are ready (seconds)",
+          "startup_max_wait_seconds": "Maximum startup barrier wait (seconds)",
+          "repair_grace_seconds": "Missing-entity repair grace after startup (seconds)",
+          "repair_missing_confirmations": "Missing checks required before creating a Repair issue",
+          "legacy_migration_enabled": "Enable legacy Eshtaya migration",
+          "migrate_legacy_entity_manager": "Migrate old Entity Manager",
+          "migrate_legacy_multiway": "Migrate old Multi-Way / Smart Groups",
+          "migrate_legacy_template_manager": "Migrate old Template Manager",
+          "legacy_hacs_cleanup": "Remove verified legacy HACS repositories after migration",
+          "legacy_service_aliases": "Keep legacy service-domain compatibility aliases"
+        },
+        "data_description": {
+          "startup_wait_home_assistant": "Recommended. Multi-Way stays protected until Home Assistant fires its startup-complete event.",
+          "startup_wait_referenced_integrations": "Recommended. If a referenced entity has a registered owner that is still loading/retrying, Eshtaya waits instead of declaring it missing.",
+          "startup_settle_seconds": "Additional stable period after referenced providers stop loading. Default: 15 seconds.",
+          "startup_max_wait_seconds": "Bounded safety timeout so a broken provider can never block Eshtaya forever. Default: 240 seconds.",
+          "repair_grace_seconds": "A missing entity must remain absent after the startup barrier for this long before it can mature into a Repair issue. Default: 90 seconds.",
+          "repair_missing_confirmations": "After the grace period, the absence must be observed repeatedly. Default: 3 checks.",
+          "legacy_migration_enabled": "Off by default in v2.4. Turn this on only when you intentionally need to migrate a retired Eshtaya integration. An already in-progress safe cutover is allowed to finish automatically.",
+          "migrate_legacy_entity_manager": "Only applies when legacy migration is enabled.",
+          "migrate_legacy_multiway": "Only applies when legacy migration is enabled.",
+          "migrate_legacy_template_manager": "Only applies when legacy migration is enabled.",
+          "legacy_hacs_cleanup": "Off by default. Cleanup happens only after successful validation and only when this option is enabled.",
+          "legacy_service_aliases": "Off by default. Enable only if old automations still call eshtaya_multiway or eshtaya_template_manager services."
+        }
+      }
+    }
+  },
   "entity": {
     "light": {
-      "group_control": {
-        "name": "Control"
-      },
-      "smart_group_control": {
-        "name": "Group control"
-      }
+      "group_control": {"name": "Control"},
+      "smart_group_control": {"name": "Group control"}
     },
     "switch": {
-      "group_control": {
-        "name": "Control"
-      },
-      "group_enabled": {
-        "name": "Synchronization"
-      },
-      "smart_group_control": {
-        "name": "Group control"
-      },
-      "smart_group_enabled": {
-        "name": "Group enabled"
-      }
+      "group_control": {"name": "Control"},
+      "group_enabled": {"name": "Synchronization"},
+      "smart_group_control": {"name": "Group control"},
+      "smart_group_enabled": {"name": "Group enabled"}
     },
     "sensor": {
-      "health": {
-        "name": "Health"
-      },
-      "last_source": {
-        "name": "Last source"
-      },
-      "last_latency": {
-        "name": "Last latency"
-      },
-      "smart_group_health": {
-        "name": "Group health"
-      },
-      "smart_group_quality": {
-        "name": "Quality score"
-      },
-      "smart_group_last_source": {
-        "name": "Last source"
-      },
-      "smart_group_latency": {
-        "name": "Last latency"
-      }
+      "health": {"name": "Health"},
+      "last_source": {"name": "Last source"},
+      "last_latency": {"name": "Last latency"},
+      "smart_group_health": {"name": "Group health"},
+      "smart_group_quality": {"name": "Quality score"},
+      "smart_group_last_source": {"name": "Last source"},
+      "smart_group_latency": {"name": "Last latency"}
     },
     "binary_sensor": {
-      "in_sync": {
-        "name": "In sync"
-      },
-      "smart_group_healthy": {
-        "name": "Healthy"
-      }
+      "in_sync": {"name": "In sync"},
+      "smart_group_healthy": {"name": "Healthy"}
     },
     "button": {
-      "sync_now": {
-        "name": "Sync now"
-      },
-      "smart_group_sync": {
-        "name": "Sync now"
-      }
+      "sync_now": {"name": "Sync now"},
+      "smart_group_sync": {"name": "Sync now"}
     }
   },
   "issues": {
     "missing_output": {
       "title": "Multi-way output entity is missing",
-      "description": "The output entity {entity} used by group {group} no longer exists. Open Multi-Way Control and replace the output entity or restore the original entity."
+      "description": "The output entity {entity} used by group {group} is still missing after Home Assistant startup protection and the configured repair grace/confirmation checks. Open Multi-Way Control and replace the output entity or restore the original entity."
     },
     "missing_controller": {
       "title": "Multi-way controller entity is missing",
-      "description": "The controller entity {entity} used by group {group} no longer exists. Open Multi-Way Control and replace or remove that controller."
+      "description": "The controller entity {entity} used by group {group} is still missing after Home Assistant startup protection and the configured repair grace/confirmation checks. Open Multi-Way Control and replace or remove that controller."
     },
     "output_unresponsive": {
       "title": "Multi-way output is not confirming commands",
@@ -94,12 +96,7 @@
     }
   },
   "selector": {
-    "group_state": {
-      "options": {
-        "on": "On",
-        "off": "Off"
-      }
-    },
+    "group_state": {"options": {"on": "On", "off": "Off"}},
     "tuya_region": {
       "options": {
         "eu": "Central Europe",
@@ -114,115 +111,19 @@
     }
   },
   "services": {
-    "sync_group": {
-      "name": "Sync group",
-      "description": "Reconcile one multi-way group using the physical output as authority.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal group ID shown in the management panel and virtual entity attributes."
-        }
-      }
-    },
-    "sync_all": {
-      "name": "Sync all groups",
-      "description": "Reconcile every enabled multi-way group."
-    },
-    "enable_group": {
-      "name": "Enable group",
-      "description": "Enable synchronization for a group.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal group ID."
-        }
-      }
-    },
-    "disable_group": {
-      "name": "Disable group",
-      "description": "Disable synchronization without deleting the group.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal group ID."
-        }
-      }
-    },
-    "set_group_state": {
-      "name": "Set group state",
-      "description": "Change the physical output and synchronized followers through the transaction engine.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal group ID."
-        },
-        "state": {
-          "name": "State",
-          "description": "Desired group state."
-        }
-      }
-    },
-    "test_group": {
-      "name": "Test group",
-      "description": "Return a non-destructive readiness report without switching the physical load.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal group ID."
-        }
-      }
-    },
-    "set_smart_group_state": {
-      "name": "Set Smart Group state",
-      "description": "Turn all Smart Group members on or off through the protected engine.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal Smart Group ID."
-        },
-        "state": {
-          "name": "State",
-          "description": "Desired on/off state."
-        }
-      }
-    },
-    "sync_smart_group": {
-      "name": "Sync Smart Group",
-      "description": "Reconcile all Smart Group members.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal Smart Group ID."
-        }
-      }
-    },
-    "test_smart_group": {
-      "name": "Test Smart Group",
-      "description": "Return a non-destructive diagnostic report.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal Smart Group ID."
-        }
-      }
-    },
-    "run_smart_group": {
-      "name": "Run Action Group",
-      "description": "Run every enabled member in a scene, script, or automation Action Group.",
-      "fields": {
-        "group_id": {
-          "name": "Group ID",
-          "description": "Internal Action Group ID."
-        }
-      }
-    }
+    "sync_group": {"name": "Sync group", "description": "Reconcile one multi-way group using the physical output as authority.", "fields": {"group_id": {"name": "Group ID", "description": "Internal group ID shown in the management panel and virtual entity attributes."}}},
+    "sync_all": {"name": "Sync all groups", "description": "Reconcile every enabled multi-way group."},
+    "enable_group": {"name": "Enable group", "description": "Enable synchronization for a group.", "fields": {"group_id": {"name": "Group ID", "description": "Internal group ID."}}},
+    "disable_group": {"name": "Disable group", "description": "Disable synchronization without deleting the group.", "fields": {"group_id": {"name": "Group ID", "description": "Internal group ID."}}},
+    "set_group_state": {"name": "Set group state", "description": "Change the physical output and synchronized followers through the transaction engine.", "fields": {"group_id": {"name": "Group ID", "description": "Internal group ID."}, "state": {"name": "State", "description": "Desired group state."}}},
+    "test_group": {"name": "Test group", "description": "Return a non-destructive readiness report without switching the physical load.", "fields": {"group_id": {"name": "Group ID", "description": "Internal group ID."}}},
+    "set_smart_group_state": {"name": "Set Smart Group state", "description": "Turn all Smart Group members on or off through the protected engine.", "fields": {"group_id": {"name": "Group ID", "description": "Internal Smart Group ID."}, "state": {"name": "State", "description": "Desired on/off state."}}},
+    "sync_smart_group": {"name": "Sync Smart Group", "description": "Reconcile all Smart Group members.", "fields": {"group_id": {"name": "Group ID", "description": "Internal Smart Group ID."}}},
+    "test_smart_group": {"name": "Test Smart Group", "description": "Return a non-destructive diagnostic report.", "fields": {"group_id": {"name": "Group ID", "description": "Internal Smart Group ID."}}},
+    "run_smart_group": {"name": "Run Action Group", "description": "Run every enabled member in a scene, script, or automation Action Group.", "fields": {"group_id": {"name": "Group ID", "description": "Internal Action Group ID."}}}
   },
   "exceptions": {
-    "not_loaded": {
-      "message": "Eshtaya Multi-Way Control is not loaded."
-    },
-    "group_error": {
-      "message": "Multi-way group operation failed: {error}"
-    }
+    "not_loaded": {"message": "Eshtaya Multi-Way Control is not loaded."},
+    "group_error": {"message": "Multi-way group operation failed: {error}"}
   }
 }
