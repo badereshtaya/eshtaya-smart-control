@@ -1,169 +1,98 @@
-# الهجرة التلقائية من الأدوات القديمة
+# الهجرة — Migration
 
-Eshtaya Smart Control صُممت لتستبدل عدة أدوات منفصلة بمنصة واحدة بدون تشغيل محركين على نفس الأجهزة وبدون إجبارك على حذف الإضافة الموحدة وإعادة تثبيتها عند كل تحديث.
+ابتداءً من الإصدار 2.4.0 لم تعد Migration من أدوات Eshtaya القديمة عملية تلقائية تعمل في الخلفية. أصبحت **اختيارية ومتحكمًا بها بالكامل من Configure**.
 
-## ما الذي يمكن نقله؟
+من المهم التفريق بين ثلاث حالات مختلفة:
 
-يوجد مساران رئيسيان للهجرة:
+1. نقل أدوات Eshtaya القديمة retired integrations.
+2. البيانات التي أصبحت أصلًا داخل Eshtaya Smart Control مثل Template Manager الموحد.
+3. اكتشاف واستلام Home Assistant Groups الأصلية.
 
-### الهجرة الموحدة القديمة
+# الوضع الافتراضي في 2.4.0
 
-تشمل الأدوات مثل:
+إذا كنت نقلت كل أدواتك القديمة وانتهيت منها، الإعداد المناسب هو:
 
 ```text
-eshtaya_entity_manager
-eshtaya_multiway
+Enable legacy Eshtaya migration = Off
+Legacy HACS cleanup = Off
+Legacy service aliases = Off
 ```
 
-وتنقل قواعد Entity/Alexa وإعدادات Multi-Way وSmart Groups إلى Storage الموحدة.
+عندما يكون Master Migration مطفأ، لا يبدأ النظام Migration جديدة تقوم عمدًا بـ:
 
-### Template Manager القديم
+- فحص Entity Manager / Multi-Way / Template Manager القديمة بغرض النقل.
+- تعطيل Config Entry قديمة.
+- نسخ Storage قديمة.
+- حذف Config Entry قديمة.
+- حذف HACS repositories قديمة.
+- تسجيل أسماء Services القديمة كـaliases.
 
-ابتداءً من 2.3.x أصبح Template Manager جزءًا أصليًا من Eshtaya Smart Control. الإصدار 2.3.1 يوسع اكتشاف القديم ليشمل:
+أما بياناتك الموجودة أصلًا داخل المنصة الموحدة فتتحمل طبيعيًا.
 
-- Config Entry قديم إن وجد.
-- `sensor.eshtaya_template_manager` القديم.
-- Services للدومين القديم.
-- مجلد custom component القديم.
-- Generated YAML/JSON وStorage/Packages المعروفة.
+# إعدادات Migration
 
-## القاعدة الأساسية
-
-الهجرة ليست Copy ثم Delete. الترتيب الآمن هو:
+افتح:
 
 ```text
-Detect
-→ Capture
-→ Backup
-→ Quiesce / stop legacy
-→ Import or stage new state
-→ Verify
-→ Final cleanup
+Settings → Devices & services → Eshtaya Smart Control → Configure
 ```
 
-إذا لم يستطع النظام إثبات أن البيانات المطلوبة قابلة للنقل، لا يفترض النجاح ولا يكمل حذفًا مدمرًا.
+ستجد:
 
-# Migration Center
+| الإعداد | الافتراضي | الوظيفة |
+|---|---:|---|
+| Enable legacy Eshtaya migration | Off | Master switch لأي Migration جديدة من الأدوات القديمة |
+| Migrate old Entity Manager | On | يطبق فقط إذا كان الـMaster مفعّلًا |
+| Migrate old Multi-Way / Smart Groups | On | يطبق فقط إذا كان الـMaster مفعّلًا |
+| Migrate old Template Manager | On | يطبق فقط إذا كان الـMaster مفعّلًا |
+| Legacy HACS cleanup | Off | حذف مستودعات HACS القديمة بعد نجاح التحقق |
+| Legacy service aliases | Off | إبقاء توافق أسماء الخدمات القديمة |
 
-System Center يعرض حالة ومراحل الهجرة. الحالات المهمة تشمل:
+الخيارات الفرعية مستقلة. إذا عطلت Entity Manager القديم من إعدادات Migration، المهاجر لا يفترض أن له الحق في نسخ أو Unload أو حذف هذا الدومين أثناء نقل أداة ثانية.
+
+# استثناء أمان: Migration بدأت قبل 2.4
+
+لا يجوز أن يؤدي إطفاء Migration الجديدة إلى ترك Transaction بدأ سابقًا في منتصف مرحلة حساسة.
+
+لذلك إذا كانت Migration قد وصلت قبل التحديث إلى حالة مثل:
 
 ```text
-not_found
 prepared
+legacy_disabled
+validated
+cleanup_partial
 restart_required
-completed
-rolled_back
-error
 ```
 
-## not_found
+يمكن للنظام السماح لها بالإكمال تلقائيًا حتى لو صار Master Migration الافتراضي Off في 2.4.
 
-لم يتم العثور على Legacy يحتاج نقلًا في هذه الجولة.
+هذا الاستثناء فقط لإنهاء Cutover بدأ فعليًا؛ لا يعني Scan تلقائيًا جديدًا لكل الأدوات القديمة.
 
-هذه الحالة ليست سببًا دائمًا لتجاهل القديم في الإصدارات اللاحقة؛ 2.3.1 يعيد فحص الأدلة الفعلية عند التشغيل، لذلك تحديث عادي فوق 2.3.0 يمكن أن يكتشف ملفات Template Manager التي لم يلتقطها المهاجر السابق.
+# Entity Manager / Multi-Way القديمة
 
-## prepared
+عند تفعيل Migration عمدًا، المنسق:
 
-تم أخذ البيانات والـBackup وتجهيز المحرك الجديد للاستحواذ.
+1. يكتشف فقط الدومينات التي اخترت نقلها.
+2. يقرأ Storage الخاصة بالأدوات المختارة فقط.
+3. ينشئ Backup.
+4. ينسخ البيانات إلى الهدف الموحد فقط ضمن شروط الأمان.
+5. يعطل Config Entry القديمة المختارة قبل انتقال Ownership.
+6. يتحقق من أعداد القواعد/المجموعات.
+7. يحذف Config Entries المختارة فقط بعد نجاح Validation.
+8. يعيد تفعيل القديم عند Rollback إذا فشل النقل.
 
-## restart_required
+أي Legacy component غير محدد خارج هذا Transaction.
 
-هذه حالة أمان، وليست Failure.
+# Template Manager القديم
 
-في Template Manager تعني عادة:
-
-- تمت قراءة mappings القديمة.
-- تم أخذ Backup.
-- تمت إزالة تعريفات Generated القديمة من القرص.
-- لكن Light/Fan أو compatibility sensor القديم ما زال محملًا داخل ذاكرة Home Assistant.
-- الكيانات الجديدة موسومة `deferred` ولا يتم إنشاؤها بعد.
-
-الهدف منع:
+Template Manager لديه Migration خاصة لأن العملية تتعامل مع Entity IDs دائمة من نوع:
 
 ```text
-light.example_2
-fan.example_2
-sensor.eshtaya_template_manager_2
+light.*
+fan.*
 ```
 
-الحل الصحيح:
-
-```text
-Restart Home Assistant مرة واحدة
-```
-
-وبعد التشغيل التالي يكمل الاستحواذ على نفس Entity IDs.
-
-## completed
-
-تم التحقق من الكيانات/القواعد المطلوبة وأصبحت الطريقة الجديدة هي المالكة الفعلية.
-
-## rolled_back
-
-بدأ cutover ثم اكتشف النظام مشكلة قبل الإنهاء، فحاول استعادة الطريقة القديمة والملفات المحفوظة بدل مواصلة Cleanup خطير.
-
-# Backup
-
-## Entity/Multi-Way migration
-
-تستخدم Migration Center نسخة احتياطية داخل Storage الموحدة وتحفظ معلومات كافية لإعادة التفعيل عند فشل Validation.
-
-## Template Manager migration
-
-يتم إنشاء Backup فعلي تحت:
-
-```text
-/config/eshtaya_smart_control_backups/template_manager_<timestamp>/
-```
-
-ويحتوي قدر الإمكان على:
-
-- mappings.
-- Entity Registry metadata.
-- Config Entry metadata.
-- Generated YAML/JSON.
-- Storage/package files المعروفة.
-- custom component القديم إن وجد.
-
-لا يحذف النظام هذا الـBackup بعد نجاح النقل.
-
-# هجرة Entity & Alexa
-
-المسار العام:
-
-1. اكتشاف Storage القديمة.
-2. Backup.
-3. نسخ القواعد إلى UnifiedEntityManager عندما تكون الوجهة مناسبة.
-4. مقارنة الأعداد.
-5. التحقق من ملفات hidden entities.
-6. تعطيل/إزالة القديم بعد النجاح.
-
-الملفات المدارة تبقى:
-
-```text
-/config/hidden_entities.yaml
-/config/www/hidden_entities.yaml
-```
-
-# هجرة Multi-Way وSmart Groups
-
-المسار العام:
-
-1. قراءة Config/Storage القديمة.
-2. Backup.
-3. منع تشغيل المحرك القديم والجديد معًا.
-4. تشغيل runtime الموحدة.
-5. مقارنة Expected/Actual groups.
-6. Reconcile للـhidden members.
-7. إزالة Config Entry القديم بعد نجاح التحقق.
-
-Compatibility aliases تبقي خدمات `eshtaya_multiway.*` الشائعة تعمل بعد النقل لتقليل كسر الأوتوميشنز.
-
-# هجرة Template Manager في 2.3.1
-
-## مصادر mappings
-
-المهاجر يقرأ Runtime القديم عندما يكون متاحًا، ويقرأ أيضًا ملفات مثل:
+عند تفعيلها يمكنها استرجاع mappings من runtime القديم أو ملفات مثل:
 
 ```text
 /config/packages/eshtaya_generated_templates.yaml
@@ -173,53 +102,68 @@ Compatibility aliases تبقي خدمات `eshtaya_multiway.*` الشائعة ت
 /config/eshtaya_template_manager/mappings.json
 ```
 
-عند وجود نفس permanent entity في ملف وRuntime حي، Runtime له أولوية لأنه يمثل الربط المستخدم فعليًا في تلك اللحظة.
+ويتم إنشاء Rollback backup قبل أي Cleanup.
 
-## التحقق قبل Cleanup
+## restart_required
 
-قبل الاستحواذ النهائي يتم حفظ:
+إذا بقيت الكيانات القديمة محملة داخل ذاكرة Home Assistant بعد إزالة تعريفاتها من القرص، لا ينشئ Eshtaya نسخ `_2`.
 
-- permanent `entity_id`.
-- `source_entity`.
-- النوع Light/Fan.
-- الاسم.
-- metadata من Entity Registry مثل Area/Icon/Labels عند توفرها.
+تبقى الكيانات الجديدة Deferred، ويكمل Restart التالي نفس Entity IDs بعد أن تختفي التعريفات القديمة من Runtime.
 
-بعد تشغيل الجديد يتم التحقق أن Entity IDs المتوقعة موجودة وملكيتها أصبحت `eshtaya_smart_control`.
+إذا كنت أصلًا في `restart_required` قبل التحديث، تعتبر هذه Migration قيد التنفيذ ويُسمح لها بالإكمال حتى لو كانت Migration الجديدة مطفأة افتراضيًا.
 
-## إذا القديم بدون Config Entry
+# HACS cleanup
 
-بعض التركيبات القديمة مبنية على YAML أو custom component يتم تحميله مع Startup ولا يمكن Unload له بشكل نظيف فورًا.
+أصبح خيارًا مستقلًا وOff افتراضيًا.
 
-2.3.1 لا يتجاهل هذا السيناريو. بعد Backup يحذف تعريفات Legacy المعروفة ويحاول `template.reload` عندما يكون متاحًا. إذا ظل أي permanent entity أو sensor قديم في الذاكرة، ينتقل إلى `restart_required` بدل إنشاء duplicate.
+تشغيل Master Migration لا يعني تلقائيًا حذف مستودعات HACS. التنظيف لا يتم إلا عندما:
 
-# عمليات HACS Cleanup
+- يكون النقل في حالة مناسبة بعد Verification؛ و
+- يكون `legacy_hacs_cleanup` مفعّلًا.
 
-تنظيف مستودعات HACS القديمة هو خطوة لاحقة بعد نجاح التحقق، وليس شرطًا لإثبات صحة البيانات.
+# Legacy service aliases
 
-إذا HACS API غير متاحة مؤقتًا، يمكن أن ينجح cutover بينما يظهر HACS cleanup كحالة منفصلة تحتاج انتباهًا.
+كذلك أصبحت مستقلة وOff افتراضيًا.
 
-# هل أحذف Eshtaya Smart Control وأعيد تثبيتها؟
-
-لا. في التحديث العادي:
+فعّلها فقط إذا كانت لديك Automations قديمة ما زالت تستدعي:
 
 ```text
-HACS Update
-→ Restart Home Assistant
-→ راجع Migration Center / Template Manager
+eshtaya_multiway.*
+eshtaya_template_manager.*
 ```
 
-حذف Config Entry الموحدة قد يزيل الحالة التي يحتاجها المهاجر لمعرفة ما تم نقله وما لم يتم نقله.
+المشاريع الجديدة يجب أن تستخدم Services تحت `eshtaya_smart_control`.
 
-# بعد اكتمال الهجرة
+# Home Assistant Groups ليست Legacy Migration
 
-تحقق من:
+اكتشاف Group helpers الأصلية وعمل Transactional Take Over لها يبقى متاحًا بغض النظر عن Master Migration.
 
-- عدم وجود Entity IDs بنهاية `_2` بشكل غير متوقع.
-- عمل الأوتوميشنز القديمة.
-- سلامة Alexa files.
-- Multi-Way/Smart Groups.
-- Template Manager Managed/Missing.
-- عدم وجود Legacy engine فعّال يتحكم بنفس الأجهزة.
+المسار مثلًا:
 
-Full Backup لـHome Assistant يبقى شبكة الأمان الأساسية قبل تحديثات أو migrations كبيرة.
+```text
+Home Assistant Group helper
+→ Eshtaya يكتشفها
+→ أنت تختار Take Over
+→ يتم فحص التوافق
+→ يحافظ Eshtaya على Entity ID وRegistry metadata عندما يكون ذلك مدعومًا
+```
+
+هذا تحويل يدوي مقصود لإعداد حالي داخل Home Assistant، وليس نقلًا تلقائيًا من Custom Integration قديمة.
+
+# الإعداد الموصى به بعد إنهاء كل النقل القديم
+
+```text
+legacy_migration_enabled = false
+legacy_hacs_cleanup = false
+legacy_service_aliases = false
+```
+
+اترك الخيارات الفرعية كما هي؛ لا تعمل طالما Master Migration مطفأ.
+
+Native HA Group discovery وTake Over يظلان شغالين.
+
+# Diagnostics
+
+System Report يعرض فقط إعدادات Startup/Migration غير الحساسة وحالة Migration التاريخية بشكل Sanitized. لا يعرض Tuya credentials ولا محتويات Backup الخام.
+
+إذا قررت تفعيل Migration قديمة لاحقًا، خذ Home Assistant Backup أولًا واحتفظ بـEshtaya migration backup حتى تتأكد أن Cutover مكتمل.
