@@ -41,6 +41,7 @@ from .multiway.startup_safe_manager import StartupSafeMultiWayManager
 from .multiway.websocket_access import async_register_websocket_commands as async_register_multiway_ws
 from .panel import async_register_panel, async_remove_panel
 from .runtime_options import runtime_options
+from .settings import async_register_websocket_commands as async_register_settings_ws
 from .template_manager import (
     async_remove_legacy_services as async_remove_template_legacy_services,
 )
@@ -50,7 +51,7 @@ from .template_manager.const import (
     DATA_TEMPLATE_MIGRATION,
     LEGACY_DOMAIN as TEMPLATE_LEGACY_DOMAIN,
 )
-from .template_manager.manager import TemplateManager
+from .template_manager.manager_v242 import TemplateManager
 from .template_manager.migration_v231 import LegacyTemplateMigration
 from .template_manager.store import TemplateManagerStore
 from .template_manager.websocket import async_register_websocket_commands as async_register_template_ws
@@ -128,6 +129,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_tuya_ws(hass)
     async_register_template_ws(hass)
     async_register_core_ws(hass)
+    async_register_settings_ws(hass)
     # Unified services are safe. Legacy service domains are handled only after the
     # config entry options and migration state are known.
     await async_setup_template_services(hass)
@@ -196,7 +198,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data[DATA_TEMPLATE_MIGRATION] = None
         _LOGGER.info(
             "Legacy Template Manager migration is disabled; existing unified "
-            "Template Manager data will be loaded without scanning/removing legacy files"
+            "Template Manager data and generated package templates will be loaded "
+            "without destructive migration"
         )
 
     try:
@@ -232,9 +235,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "restart to release legacy entity IDs. No duplicate entities were created."
             )
 
-        # Legacy aliases are now explicit compatibility options, independent from
-        # normal unified services. Never register them just because legacy migration
-        # happened to complete.
+        # Legacy aliases are explicit compatibility options, independent from normal
+        # unified services and generated package adoption.
         old_multiway_entries = hass.config_entries.async_entries("eshtaya_multiway")
         old_template_entries = hass.config_entries.async_entries(TEMPLATE_LEGACY_DOMAIN)
         if legacy_aliases:
@@ -247,9 +249,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     replace_legacy=True,
                 )
         else:
-            # On an options-flow reload, aliases from a previous Eshtaya runtime can
-            # still exist in ServiceRegistry. Remove them only when no actual old
-            # config entry/component owns that legacy domain.
             if not old_multiway_entries and "eshtaya_multiway" not in hass.config.components:
                 async_remove_legacy_service_aliases(hass)
             if (
@@ -291,7 +290,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(
             hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, _entity_registry_changed)
         )
-        entry.async_on_unload(entry.add_update_listener(_entry_updated))
         return True
     except Exception as err:
         if data.get(DATA_RUNTIME):
@@ -315,13 +313,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             pass
         _LOGGER.exception("Eshtaya Smart Control setup failed")
         raise
-
-
-async def _entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Refresh cheap runtime config; OptionsFlowWithReload handles full reload."""
-    manager = hass.data.get(DOMAIN, {}).get(DATA_TUYA_MANAGER)
-    if manager:
-        manager._reload_config()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
