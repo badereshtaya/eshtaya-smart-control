@@ -1,6 +1,6 @@
 # Template Manager
 
-Template Manager is the permanent-entity layer inside **Eshtaya Smart Control**. It creates stable Home Assistant `light` or `fan` entities in front of physical `switch` entities, commonly Tuya switches.
+Template Manager is the permanent-entity layer inside **Eshtaya Smart Control**. It creates or manages stable Home Assistant `light` or `fan` entities in front of physical `switch` entities, commonly Tuya switches.
 
 # Why use permanent entities?
 
@@ -28,13 +28,43 @@ Creation is refused if the requested ID is already occupied in the state machine
 
 ## Managed
 
-Shows every permanent entity currently owned by the unified Template Manager, including its source and source state.
+Shows every permanent entity managed by Template Manager, including both native Eshtaya mappings and recognized generated-package mappings.
 
 Available operations:
 
 - **Edit** — change display name / permanent Entity ID while staying in the same domain.
 - **Source / Relink** — replace the physical source without changing the logical permanent entity.
 - **Delete** — remove the permanent mapping/entity; the physical switch is not deleted.
+
+# Generated package adoption in 2.4.2
+
+A known Eshtaya-generated Home Assistant package is now treated as **Managed** automatically even when Legacy Migration is Off. This specifically includes:
+
+```text
+/config/packages/eshtaya_generated_lights.yaml
+/config/packages/eshtaya_generated_templates.yaml
+/config/eshtaya_template_manager/generated_templates.yaml
+```
+
+Depending on the Home Assistant environment, the same config root may be shown on the host as `/homeassistant`, so `/homeassistant/packages/eshtaya_generated_lights.yaml` is the same logical package location on installations that expose that path.
+
+This is intentionally different from destructive legacy migration:
+
+- the package file remains in place;
+- Home Assistant's `template` integration remains the runtime owner of those entities;
+- Eshtaya mirrors their mappings into Template Manager as Managed records;
+- those mirrored records are marked deferred internally so Eshtaya does **not** create duplicate entities with the same IDs;
+- the source switches are no longer shown as new Available candidates when they are already used by the generated package.
+
+When Edit, Relink or Delete is used on a generated-package record, Eshtaya updates the **same YAML file**, creates a backup first, writes through a temporary file, and calls `template.reload`.
+
+Backups are stored under:
+
+```text
+/config/eshtaya_smart_control_backups/generated_packages/<timestamp>/...
+```
+
+You do not need to enable Legacy Migration just to manage an existing `eshtaya_generated_lights.yaml` file.
 
 ## Missing
 
@@ -55,21 +85,20 @@ The permanent entity tracks changes originating from Tuya, wall controls, Home A
 
 Template Manager has its own bounded source-startup protection and the overall Eshtaya 2.4 integration is also scheduled after official Tuya when configured.
 
-Multi-Way's new 2.4 Startup Barrier is separate from Template Manager source handling; both are designed to prevent slow provider startup from being mistaken for permanent entity loss.
+Multi-Way's 2.4 Startup Barrier is separate from Template Manager source handling; both are designed to prevent slow provider startup from being mistaken for permanent entity loss.
 
-# Legacy Template Manager migration in 2.4.0
+# Startup and Migration settings in 2.4.2
 
-**Legacy Template Manager migration is no longer started automatically for every normal update.**
-
-Open:
+The controls are available directly inside:
 
 ```text
-Settings → Devices & services
-→ Eshtaya Smart Control
-→ Configure
+Eshtaya Smart Control → System Center
+→ Startup & Migration Settings
 ```
 
-For a system where migration is already complete, recommended settings are:
+They also remain available through Home Assistant's integration Configure flow.
+
+For a system where historical migrations are already complete, recommended settings are:
 
 ```text
 Enable legacy Eshtaya migration: Off
@@ -77,14 +106,20 @@ Legacy HACS cleanup:             Off
 Legacy service aliases:          Off
 ```
 
-Existing unified Template Manager mappings continue to load normally with Legacy Migration Off.
+The individual migration selectors remain visible so you can choose old Entity Manager, Multi-Way/Smart Groups and Template Manager independently if a future migration is intentionally required.
 
-If you intentionally need to migrate a retired Template Manager later:
+Native Home Assistant Group discovery and **Take Over** are independent from these legacy-migration switches and continue to work with Legacy Migration Off.
+
+# Legacy Template Manager migration
+
+**Legacy Template Manager migration is not started automatically for normal updates.**
+
+If you intentionally need to retire an old standalone Template Manager and move ownership into Eshtaya native entities:
 
 1. enable **Legacy Eshtaya migration**;
-2. keep **Migrate old Template Manager** enabled;
+2. enable **Migrate old Template Manager**;
 3. take a Home Assistant backup;
-4. save Configure and let the integration reload;
+4. save the settings and let the integration reload;
 5. review Template Manager / Migration Center state.
 
 The migrator can recover mappings from the old runtime/config entry and known generated sources such as:
@@ -96,6 +131,8 @@ The migrator can recover mappings from the old runtime/config entry and known ge
 /config/eshtaya_template_manager/templates.json
 /config/eshtaya_template_manager/mappings.json
 ```
+
+This explicit migration is a takeover/retirement workflow. It is not required for the normal generated-package management described above.
 
 # Zero-duplicate migration sequence
 
@@ -120,21 +157,17 @@ If retired generated entities remain resident in Home Assistant memory, the unif
 
 The next Home Assistant restart completes the exact-ID takeover after the old definitions no longer load.
 
-A migration already at `restart_required` before upgrading to 2.4.0 is allowed to finish even though new Legacy Migration runs default to Off. This prevents an earlier transaction from being stranded halfway through cutover.
+A migration already at `restart_required` is allowed to finish even though new Legacy Migration runs default to Off. This prevents an earlier transaction from being stranded halfway through cutover.
 
 # Backup and migration lock
 
-Before removing legacy definitions, the migration keeps a rollback backup under:
-
-```text
-/config/eshtaya_smart_control_backups/template_manager_<timestamp>/
-```
-
-While a migration is active and incomplete:
+During a real cutover phase (`prepared` or `restart_required`):
 
 - UI mutation controls are locked;
 - backend create/edit/delete/relink calls are rejected;
 - deferred entities do not claim IDs still owned by the old runtime.
+
+A stale failed or rolled-back migration status no longer keeps Template Manager permanently read-only.
 
 # Services
 
@@ -148,7 +181,7 @@ eshtaya_smart_control.template_delete
 eshtaya_smart_control.template_relink
 ```
 
-Legacy `eshtaya_template_manager.*` aliases are now an explicit compatibility option and default **Off**. Enable them only when old automations still require the retired service domain.
+Legacy `eshtaya_template_manager.*` aliases are an explicit compatibility option and default **Off**. Enable them only when old automations still require the retired service domain.
 
 # Compatibility sensor
 
@@ -171,9 +204,8 @@ template.manage
 
 # Recommended state after historical migration is finished
 
-If all old Template Manager data is already inside Eshtaya Smart Control:
-
 - leave Legacy Migration Off;
 - leave Legacy HACS cleanup Off unless you intentionally run a verified cleanup;
 - leave Legacy Service Aliases Off unless old automations need them;
-- use the normal unified Template Manager for future mappings and source relinks.
+- keep generated package mappings under normal Template Manager management;
+- use explicit Legacy Migration only when you intentionally want a native takeover/retirement of an old implementation.
