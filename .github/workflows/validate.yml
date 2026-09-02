@@ -100,8 +100,9 @@ jobs:
                   raise SystemExit(f"v2.4.1 frontend invariant missing: {required_text}")
 
           websocket = (root / "websocket_v22.py").read_text(encoding="utf-8")
-          if f'{constants.get("DOMAIN")}/documentation/get' not in websocket:
-              raise SystemExit("permission-aware documentation WebSocket endpoint is missing")
+          for required_text in ("documentation/get", "websocket_documentation_get", "docs.view"):
+              if required_text not in websocket:
+                  raise SystemExit(f"permission-aware documentation WebSocket invariant missing: {required_text}")
           PY
       - name: Verify packaged documentation is byte-identical to GitHub docs
         shell: bash
