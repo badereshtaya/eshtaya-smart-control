@@ -1,10 +1,8 @@
 # إدارة الكيانات الدائمة — Template Manager
 
-Template Manager هو طبقة الكيانات الدائمة داخل **Eshtaya Smart Control**. وظيفته إنشاء كيان Home Assistant ثابت من نوع `light` أو `fan` فوق مفتاح فعلي من نوع `switch`، غالبًا من Tuya.
+Template Manager هو طبقة الكيانات الدائمة داخل **Eshtaya Smart Control**. ينشئ كيان Home Assistant ثابت من نوع `light` أو `fan` فوق `switch` فيزيائي، وغالبًا يكون مصدره Tuya.
 
-## لماذا نستخدمه؟
-
-بدل أن تعتمد الأوتوميشنز والداشبورد وأليكسا على Entity ID للمفتاح الفيزيائي مباشرة، يمكن اعتماد كيان دائم ثابت.
+# لماذا نستخدم كيانًا دائمًا؟
 
 مثال:
 
@@ -13,121 +11,83 @@ Template Manager هو طبقة الكيانات الدائمة داخل **Eshtay
 الكيان الدائم:     light.living_main_light
 ```
 
-إذا تغير جهاز Tuya أو تغير Entity ID للمصدر، يمكنك عمل **Relink** للمصدر مع إبقاء:
-
-```text
-light.living_main_light
-```
-
-كما هو. هذا يقلل تعديل الأوتوميشنز والواجهات بعد استبدال جهاز.
+إذا استبدلت الجهاز أو تغير Entity ID للمصدر لاحقًا، استخدم **Relink** واربط الكيان الدائم بمفتاح جديد بدون تغيير Entity ID الذي تعتمد عليه الداشبورد والأوتوميشنز وAlexa.
 
 # التبويبات
 
 ## Available — المتاح
 
-يعرض مفاتيح `switch` المتوافقة التي ليست مستخدمة حاليًا كمصدر لكيان دائم.
+يعرض مفاتيح متوافقة ليست مستخدمة كمصدر لكيان دائم. يمكنك اختيار:
 
-لكل سطر:
+- Light أو Fan.
+- الاسم.
+- Entity ID النهائي.
+- Create.
 
-- **Type**: Light أو Fan.
-- **Name**: الاسم الظاهر.
-- **Entity ID**: المعرف النهائي.
-- **Create**: إنشاء الربط.
-
-الاقتراح الافتراضي يحول مثلًا:
-
-```text
-switch.office_light
-```
-
-إلى:
-
-```text
-light.office_light
-```
-
-إذا اخترت Fan يصبح domain هو `fan`.
-
-لا يسمح بإنشاء Entity ID مستخدم أصلًا في State Machine أو Entity Registry أو Store الخاصة بـTemplate Manager.
+يرفض النظام إنشاء Entity ID مستخدم أصلًا في State Machine أو Entity Registry أو Template Manager Store.
 
 ## Managed — المدار
 
-يعرض كل الكيانات الدائمة التي تملكها الإضافة.
+يعرض الكيانات الدائمة التي يملكها Template Manager الموحد ومصادرها وحالة كل مصدر.
 
-لكل عنصر سترى:
+العمليات:
 
-- الاسم.
-- Entity ID الدائم.
-- `source_entity`.
-- حالة المصدر.
-- Platform للمصدر.
-- النوع Light/Fan.
-
-### Edit
-
-يمكن تغيير الاسم وEntity ID، لكن الكيان يجب أن يبقى في نفس domain. Light لا يتحول إلى Fan بمجرد Rename.
-
-عند تغيير Entity ID يتم استخدام Entity Registry بدل إنشاء كيان مستقل جديد قدر الإمكان.
-
-### Source
-
-يغير المصدر الفيزيائي خلف الكيان الدائم.
-
-مثال بعد استبدال مفتاح Tuya:
-
-```text
-قديم: switch.living_light_old
-جديد: switch.living_light_new
-دائم: light.living_light
-```
-
-تغير Source فقط وتبقى الأوتوميشنز على `light.living_light`.
-
-### Delete
-
-يحذف الكيان الدائم والـmapping الخاصة به فقط. لا يحذف مفتاح Tuya الفيزيائي.
+- **Edit**: تعديل الاسم أو Entity ID مع البقاء في نفس domain.
+- **Source / Relink**: استبدال المصدر الفيزيائي مع إبقاء الكيان الدائم.
+- **Delete**: حذف الكيان الدائم والـmapping فقط، وليس المفتاح الفيزيائي.
 
 ## Missing — المفقود
 
-يظهر الكيان هنا عندما لا يعود `source_entity` موجودًا بعد انتهاء حماية Startup.
+يظهر الـmapping كمفقود عندما يبقى `source_entity` غير موجود بعد حماية Startup الخاصة بـTemplate Manager. حالة `unavailable` مؤقتة وحدها لا تعني أن المصدر حُذف.
 
-الحالة `unavailable` المؤقتة لا تعني بالضرورة أن mapping يجب حذفها.
+Suggestions للمصدر البديل مساعدة فقط؛ افحص الجهاز الحقيقي قبل Relink.
 
-Template Manager يحسب Suggestions لمصادر بديلة اعتمادًا على تشابه Entity IDs، لكن الاقتراح ليس ضمانًا؛ راجع الجهاز قبل تنفيذ Relink.
-
-# تتبع الحالة
-
-الكيان الدائم يقرأ حالة المصدر ويحدّث نفسه عند تغير المفتاح. وعند `turn_on` أو `turn_off` يرسل الأمر إلى `source_entity`.
-
-الفكرة هي:
+# سلوك التشغيل
 
 ```text
-Permanent entity state ← Physical switch state
-Permanent entity command → Physical switch service
+حالة الكيان الدائم ← حالة switch المصدر
+أمر الكيان الدائم  → خدمة switch على المصدر
 ```
+
+أي تغيير يأتي من Tuya أو زر الحائط أو Home Assistant أو Automation ينعكس على الكيان الدائم.
 
 # حماية Startup
 
-عند تشغيل Home Assistant قد تتأخر Tuya أو integration أخرى في إنشاء states.
+Template Manager لديه حماية محدودة خاصة بتأخر ظهور مصادره، وفوق ذلك Eshtaya 2.4 يتم ترتيبه بعد Tuya الرسمية عندما تكون مفعلة.
 
-Template Manager ينتظر فترة محدودة عندما يكون المصدر ما زال موجودًا في Entity Registry لكنه لم يظهر في State Machine بعد. هذا يمنع نقل كل شيء مباشرة إلى Missing بسبب بطء الإقلاع.
+Startup Barrier الجديد في Multi-Way منفصل عن منطق Template Manager، لكن الهدف في الحالتين واحد: عدم اعتبار بطء Provider أثناء Restart حذفًا حقيقيًا للكيان.
 
-# النقل من الطريقة القديمة في 2.3.1
+# Legacy Template Manager Migration في 2.4.0
 
-الإصدار 2.3.1 يدعم أكثر من شكل للطريقة القديمة.
+**Migration من Template Manager القديم لم تعد تبدأ تلقائيًا مع كل Update عادي.**
 
-## مصادر الاكتشاف
+افتح:
 
-يبحث عن:
+```text
+Settings → Devices & services
+→ Eshtaya Smart Control
+→ Configure
+```
 
-- Config Entries للدومين القديم `eshtaya_template_manager`.
-- `sensor.eshtaya_template_manager` عندما يكون مملوكًا للطريقة القديمة.
-- Services للدومين القديم.
-- مجلد custom component القديم.
-- ملفات التخزين والحزم القديمة.
-- Generated YAML/JSON المستخدمة لإنشاء الكيانات الدائمة.
+إذا كان النقل القديم عندك مكتملًا، الإعداد الموصى به:
 
-الملفات المعروفة تشمل:
+```text
+Enable legacy Eshtaya migration: Off
+Legacy HACS cleanup:             Off
+Legacy service aliases:          Off
+```
+
+كل mappings الموجودة أصلًا داخل Template Manager الموحد تستمر بالتحميل والعمل طبيعيًا عندما تكون Legacy Migration مطفأة.
+
+إذا احتجت لاحقًا نقل Template Manager قديم عمدًا:
+
+1. فعّل **Legacy Eshtaya migration**.
+2. اترك **Migrate old Template Manager** مفعلة.
+3. خذ Home Assistant Backup.
+4. احفظ Configure وانتظر Reload.
+5. راجع Template Manager وMigration Center.
+
+المهاجر يستطيع قراءة runtime/config entry القديم أو ملفات Generated معروفة مثل:
 
 ```text
 /config/packages/eshtaya_generated_templates.yaml
@@ -137,100 +97,48 @@ Template Manager ينتظر فترة محدودة عندما يكون المصد
 /config/eshtaya_template_manager/mappings.json
 ```
 
-## لماذا قراءة الملفات مهمة؟
+# تسلسل النقل بدون Duplicate
 
-في بعض التركيبات القديمة لم يكن هناك Config Entry مستقل جاهز يمكن Unload له. الاعتماد على Runtime Sensor وحده قد يفشل إذا تأخر القديم أو لم يحمل قبل الجديد.
-
-2.3.1 يستطيع استخراج mappings من Generated files نفسها، ثم دمجها مع Runtime records إن كانت متاحة. Runtime mapping الصحيحة لها أولوية عند وجودها لأنها تمثل ما كان المحرك يستخدمه فعليًا.
-
-# تسلسل Migration الآمن
+عند تفعيل Migration عمدًا:
 
 ```text
-Detect legacy evidence
-→ Wait for old runtime when useful
-→ Read runtime + generated mappings
-→ Validate readable count
+Detect selected legacy evidence
+→ Recover mappings
+→ Validate readable data
 → Capture Entity Registry metadata
-→ Backup files and mappings
-→ Disable/unload old Config Entry إن وجد
-→ Remove old services
-→ Remove generated legacy files after backup
-→ template.reload إن كان متاحًا
-→ Wait for old Entity IDs to be released
+→ Create rollback backup
+→ Quiesce old implementation
+→ Release exact Entity IDs
+→ Start unified entities
+→ Verify IDs and ownership
+→ Final cleanup when enabled
 ```
 
-ثم يوجد مساران.
+## restart_required
 
-## المسار A — تحررت Entity IDs
+إذا بقيت الكيانات القديمة محملة في ذاكرة Home Assistant، لا ينشئ النظام بدائل `_2`.
 
-```text
-Import mappings
-→ Start new Light/Fan entities
-→ Verify exact IDs + owner platform
-→ Restore name/icon/area/labels
-→ Remove old Config Entry
-→ Mark completed
-```
+تبقى الكيانات الجديدة Deferred، ويكمل Restart التالي نفس Entity IDs بعد أن تختفي تعريفات القديم من Runtime.
 
-## المسار B — القديم ما زال في الذاكرة
+إذا كانت Migration وصلت إلى `restart_required` قبل تحديث 2.4.0، يسمح لها النظام بالإكمال حتى مع كون Legacy Migration الجديدة Off افتراضيًا. هذا يمنع ترك Transaction قديم في منتصف Cutover.
 
-إذا بقيت مثلًا:
+# Backup وMigration Lock
 
-```text
-light.room_1
-```
-
-موجودة في State Machine من Template integration القديمة، لا يتم إجبار الجديد على الإنشاء.
-
-بدل ذلك:
-
-- تحفظ mappings كـ`deferred`.
-- لا يتم إنشاء Light/Fan الجديدة.
-- لا يتم إنشاء compatibility sensor الجديد على نفس ID.
-- تقفل عمليات Create/Edit/Delete/Relink.
-- تظهر حالة `restart_required`.
-
-بعد Restart التالي تكون ملفات القديم قد أزيلت، فلا يحمل القديم، ويكمل الجديد الاستيلاء على **نفس Entity IDs**.
-
-هذه الحماية مصممة خصيصًا لمنع:
-
-```text
-light.room_1_2
-fan.room_1_2
-```
-
-ومنع وجود محركين يتحكمان بنفس المصدر.
-
-# Backup
-
-قبل إزالة أي ملف Legacy يتم إنشاء نسخة داخل:
+قبل إزالة تعريفات قديمة يتم إنشاء Backup تحت:
 
 ```text
 /config/eshtaya_smart_control_backups/template_manager_<timestamp>/
 ```
 
-وتشمل قدر الإمكان:
+وأثناء Migration فعالة وغير مكتملة:
 
-- mappings.
-- registry metadata.
-- config entry information.
-- legacy custom component.
-- YAML/JSON/storage files.
-
-لا تحذفها قبل التأكد أن Migration مكتملة.
-
-# Migration Lock
-
-عندما تكون Migration فعالة وغير مكتملة، 2.3.1 يمنع تعديل mappings في مستويين:
-
-1. الواجهة تعطل الأزرار والحقول.
-2. الـPython backend يرفض mutation حتى لو تم استدعاء WebSocket/Service يدويًا.
-
-الهدف منع تغيير البيانات أثناء cutover.
+- الواجهة تقفل Create/Edit/Delete/Relink.
+- الـBackend يرفض نفس العمليات حتى لو تم استدعاؤها مباشرة.
+- الكيانات Deferred لا تحاول أخذ IDs ما زال القديم يملكها.
 
 # الخدمات
 
-الخدمات الأصلية تحت domain الجديد تشمل:
+الخدمات الموحدة:
 
 ```text
 eshtaya_smart_control.template_scan
@@ -240,60 +148,32 @@ eshtaya_smart_control.template_delete
 eshtaya_smart_control.template_relink
 ```
 
-بعد اكتمال النقل، يمكن تسجيل compatibility aliases للدومين القديم عندما لا يكون implementation القديم موجودًا.
+Compatibility aliases القديمة تحت `eshtaya_template_manager.*` أصبحت خيارًا مستقلًا و**Off افتراضيًا**. فعّلها فقط إذا كانت Automations قديمة ما زالت تعتمد عليها.
 
 # Compatibility Sensor
 
-بعد اكتمال الانتقال يدعم النظام:
+يمكن للنسخة الموحدة امتلاك:
 
 ```text
 sensor.eshtaya_template_manager
 ```
 
-ويعرض معلومات مثل:
-
-- managed.
-- candidates.
-- missing.
-- counts.
-- ready.
-- migration.
-- updated_at.
+مع managed/candidates/missing counts وحالة readiness وMigration.
 
 # الصلاحيات
 
 ```text
 template.view
-```
-
-للمشاهدة وScan.
-
-```text
 template.manage
 ```
 
-للإنشاء والتعديل والحذف وRelink.
+`template.view` للمشاهدة وScan، و`template.manage` للإنشاء والتعديل والحذف وRelink.
 
-في 2.3.1 تم إصلاح طبقة navigation القديمة حتى تتعرف على `template.view` مثل backend تمامًا.
+# الوضع الموصى به بعد إنهاء النقل القديم
 
-# ماذا أفعل بعد تحديث 2.3.1؟
+إذا كل بيانات Template Manager القديمة أصبحت داخل Eshtaya Smart Control:
 
-إذا كنت جاي من الطريقة القديمة:
-
-```text
-HACS Update
-→ Restart Home Assistant
-→ افتح Template Manager
-```
-
-إذا ظهرت **Migration completed** انتهى النقل.
-
-إذا ظهرت **Restart Required**:
-
-```text
-Restart Home Assistant مرة واحدة
-→ افتح Template Manager
-→ تأكد أن Managed موجودة بدون *_2
-```
-
-لا تحذف Eshtaya Smart Control ولا تعيد تثبيتها فقط لإكمال النقل.
+- اترك Legacy Migration Off.
+- اترك Legacy HACS Cleanup Off إلا إذا كنت تنفذ Cleanup مقصودًا بعد Verification.
+- اترك Legacy Service Aliases Off إلا إذا احتاجتها Automations قديمة.
+- استخدم Template Manager الموحد لكل mappings وRelink جديدة.
