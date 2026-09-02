@@ -64,6 +64,30 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
             )
         return steps
 
+    def _completed_state_requires_rescan(self, saved: dict[str, Any]) -> bool:
+        """Return true when an explicitly requested migration must scan again.
+
+        A historical ``no_legacy`` result is not a permanent lock. In v2.4 legacy
+        migration is opt-in, so if the operator later enables it we must perform a
+        fresh scan. We also rescan if the selected migration scope was expanded
+        after a prior partial-domain migration completed.
+        """
+        if not saved.get("completed"):
+            return False
+        if saved.get("phase") == "no_legacy" or not saved.get("legacy_found"):
+            return True
+
+        previous = saved.get("selection")
+        if not isinstance(previous, dict):
+            # Older completed migrations predate selectable domains. Treat them as
+            # already covering the historical Entity/Multi-Way migration scope.
+            return False
+        current = self.selection()
+        return any(
+            bool(current.get(key)) and not bool(previous.get(key))
+            for key in current
+        )
+
     async def _save_state(self) -> None:
         await self._store.async_save(self.state)
 
@@ -147,9 +171,29 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
         if isinstance(saved, dict):
             self.state = saved
             self._ensure_steps()
-            if saved.get("completed"):
+            if saved.get("completed") and not self._completed_state_requires_rescan(saved):
                 await self._hydrate_completed_v11_state()
                 return deepcopy(self.state)
+            if saved.get("completed"):
+                # The caller only reaches async_prepare when the operator explicitly
+                # enabled migration (or when an in-flight transaction must resume).
+                # Reset a previous no-legacy/partial-scope terminal marker so the
+                # transactional coordinator performs a real fresh detection pass.
+                self.state = {
+                    "version": saved.get("version", 1),
+                    "completed": False,
+                    "phase": "rescan_requested",
+                    "legacy_found": False,
+                    "selection": self.selection(),
+                    "previous_completed_state": {
+                        "phase": saved.get("phase"),
+                        "completed_at": saved.get("completed_at"),
+                        "selection": deepcopy(saved.get("selection") or {}),
+                    },
+                    "steps": {},
+                }
+                self._ensure_steps()
+                await self._save_state()
 
         await self._set_step("detect", "running", message="Scanning legacy integrations and storage")
         try:
@@ -173,6 +217,7 @@ class MigrationCenterCoordinator(LegacyMigrationCoordinator):
             details={
                 "entries": len(self.state.get("entries") or []),
                 "expected": deepcopy(self.state.get("expected") or {}),
+                "selection": deepcopy(self.state.get("selection") or self.selection()),
             },
         )
         await self._set_step(

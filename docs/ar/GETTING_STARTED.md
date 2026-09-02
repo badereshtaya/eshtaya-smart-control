@@ -9,12 +9,12 @@
 - إدارة الكيانات وسياسة إظهارها أو إخفائها في Alexa.
 - إدارة Tuya Cloud عند الحاجة.
 - Multi-Way وSmart Groups وAction Groups.
-- Template Manager لإنشاء كيانات Light/Fan دائمة فوق مفاتيح Tuya.
+- Template Manager لإنشاء كيانات Light/Fan دائمة فوق مفاتيح فعلية.
 - مركز النظام والتشخيص والتقارير.
-- صلاحيات Eshtaya الداخلية، بالإضافة إلى إدارة أدوار Home Assistant الأساسية للمستخدمين عندما يسمح Core بذلك.
+- صلاحيات Eshtaya الداخلية وأدوات الوصول المدعومة من Home Assistant.
 - مركز Documentation عربي/إنجليزي.
 
-## التثبيت الجديد عبر HACS
+# التثبيت عبر HACS
 
 1. افتح **HACS → Integrations**.
 2. أضف المستودع المخصص:
@@ -23,16 +23,16 @@
 https://github.com/badereshtaya/hacs-eshtaya-smart-control
 ```
 
-3. اختر **Integration** ثم ثبّت **Eshtaya Smart Control**.
+3. ثبّت **Eshtaya Smart Control**.
 4. أعد تشغيل Home Assistant.
 5. افتح **Settings → Devices & services → Add integration**.
 6. ابحث عن **Eshtaya Smart Control** وأكمل الإضافة.
 
-لا يتم طلب بيانات Tuya أثناء التثبيت الأول. Tuya اختيارية ويتم تفعيلها من داخل تبويب Tuya Control.
+لا يتم طلب بيانات Tuya OpenAPI أثناء التثبيت الأول. Tuya Control اختيارية.
 
-## التحديث من إصدار سابق
+# التحديث من إصدار سابق
 
-التحديث الطبيعي هو السيناريو المدعوم والمفضل:
+المسار الصحيح:
 
 ```text
 HACS → Eshtaya Smart Control → Update
@@ -40,64 +40,119 @@ HACS → Eshtaya Smart Control → Update
 → افتح Eshtaya Smart Control
 ```
 
-**لا تحتاج إلى حذف الإضافة وإعادة تثبيتها.** حذف الـConfig Entry ليس مطلوبًا للتحديث وقد يزيل حالة أو إعدادات كان يمكن نقلها تلقائيًا.
+**لا تحذف Config Entry الموحدة فقط لأجل التحديث.**
 
-الإصدار 2.3.1 يغيّر رقم نسخة ملفات الواجهة، لذلك بعد Restart يجب أن يحمّل Home Assistant JavaScript الجديد بدل النسخة المخزنة في الكاش. إذا بقي المتصفح يعرض واجهة قديمة بشكل غير طبيعي يمكن عمل Refresh للصفحة، لكن مسار التحديث نفسه لا يعتمد على حذف الإضافة.
+# ما الجديد المهم في 2.4.0؟
 
-## إذا كنت تستخدم Template Manager القديم
+الإصدار 2.4.0 يضيف Startup Barrier حقيقي للتكاملات البطيئة أو Cloud-backed مثل Tuya الرسمية.
 
-الإصدار 2.3.1 يدعم النقل من الطريقة القديمة حتى عندما كانت تعتمد على ملفات Generated YAML/JSON وليس Config Entry مستقل فقط.
-
-المهاجر يبحث عن مصادر مثل:
+المحرك القديم كان يعتمد تأخيرًا ثابتًا يبدأ من وقت تحميل Eshtaya. إذا انتهت المدة قبل أن تعيد Tuya إنشاء كيان مثل:
 
 ```text
-/config/packages/eshtaya_generated_templates.yaml
-/config/packages/eshtaya_generated_lights.yaml
-/config/eshtaya_template_manager/generated_templates.yaml
-/config/eshtaya_template_manager/templates.json
-/config/eshtaya_template_manager/mappings.json
+light.updown
 ```
 
-قبل أي حذف يتم إنشاء Backup داخل:
+كان ممكن يظهر Repair كاذب:
 
 ```text
-/config/eshtaya_smart_control_backups/
+Multi-way output entity is missing
 ```
 
-ثم تتم محاولة تحرير Entity IDs القديمة. إذا بقيت كيانات Template القديمة محملة في ذاكرة Home Assistant، يتم إيقاف إنشاء الكيانات الجديدة مؤقتًا وتظهر حالة **Restart Required**. هذا مقصود لمنع ظهور `*_2` أو تشغيل محركين لنفس الإضاءة. بعد Restart التالي يكمل النقل بنفس Entity IDs.
+في 2.4.0 أصبحت الحماية على خمس طبقات:
 
-## أول جولة داخل المنصة
+1. ترتيب تحميل Eshtaya بعد Tuya الرسمية عندما تكون مفعلة.
+2. انتظار Home Assistant startup-complete.
+3. انتظار Config Entries المالكة للكيانات المرجعية إذا كانت ما زالت تحمل أو تعيد المحاولة.
+4. فترة Settle إضافية بعد استقرار المصادر.
+5. Repair Grace بعد الإقلاع مع عدة تأكيدات قبل اعتبار الكيان مفقودًا فعليًا.
 
-بعد فتح لوحة Eshtaya Smart Control راجع بالترتيب:
+خلال Startup المحمي تظهر Multi-Way كـ`starting/recovering` وليس Fault، ولا يتم إصدار Missing Output/Controller Repair.
 
-1. **Dashboard**: تأكد من Health Score وحالة الوحدات.
-2. **Entity & Alexa Control**: افحص الكيانات وملفات hidden entities.
-3. **Tuya Control**: فعّل حساب Tuya فقط إذا احتجت إدارة Cloud مباشرة.
-4. **Multi-Way**: افحص المجموعات وحالة Health لكل مجموعة.
-5. **Template Manager**: افحص Managed / Available / Missing وحالة Migration.
-6. **System Center**: راجع التنبيهات وMigration Center والتقارير.
-7. **Access Control**: راجع صلاحيات المستخدمين قبل تسليم المشروع.
+الإعدادات الافتراضية الموصى بها:
 
-## الصلاحيات عند أول تشغيل
+```text
+Wait for Home Assistant startup:       On
+Wait for referenced integrations:      On
+Startup settle:                         15 ثانية
+Startup maximum wait:                  240 ثانية
+Missing Repair grace:                  90 ثانية
+Missing confirmations:                 3
+```
 
-مدير Home Assistant الحقيقي يحصل على صلاحيات Eshtaya كاملة. المستخدمون العاديون يحتاجون دورًا أو صلاحيات داخل Access Control.
+# إعدادات Startup وMigration
+
+افتح:
+
+```text
+Settings → Devices & services
+→ Eshtaya Smart Control
+→ Configure
+```
+
+عند حفظ الإعدادات يتم Reload للـConfig Entry تلقائيًا.
+
+## الإعداد المناسب بعد إنهاء Migration القديمة
+
+إذا نقلت كل أدوات Eshtaya القديمة وانتهيت منها، استخدم:
+
+```text
+Enable legacy Eshtaya migration: Off
+Legacy HACS cleanup:             Off
+Legacy service aliases:          Off
+```
+
+يمكن ترك خيارات Entity Manager / Multi-Way / Template Manager الفرعية مفعلة؛ لا تعمل طالما Master Legacy Migration مطفأ.
+
+إذا كان هناك Cutover قديم بدأ فعليًا قبل التحديث ووصل إلى مرحلة حساسة مثل `restart_required`، يسمح له النظام بالإكمال حتى لا يبقى النظام في منتصف Migration.
+
+## Home Assistant Groups تبقى شغالة
+
+اكتشاف Group helpers الأصلية وعمل Transactional Take Over لها **ليس Legacy Migration**، ويظل متاحًا عندما تكون Migration الأدوات القديمة مطفأة.
+
+# إذا كان Template Manager القديم ما زال بمنتصف النقل
+
+إذا كانت الحالة:
+
+```text
+restart_required
+```
+
+نفذ Restart المطلوب. تبقى الكيانات الجديدة Deferred حتى تتحرر Entity IDs القديمة، وهذا يمنع `_2` وتشغيل محركين لنفس المصدر.
+
+إذا كانت Migration عندك مكتملة أصلًا، اترك Legacy Migration مطفأة.
+
+# أول جولة داخل المنصة
+
+راجع بالترتيب:
+
+1. **Dashboard**: Health Score وحالة Startup والوحدات.
+2. **Entity & Alexa Control**: الكيانات وملفات hidden entities.
+3. **Tuya Control**: فعّلها فقط إذا احتجت إدارة Cloud مباشرة.
+4. **Multi-Way**: افحص المجموعات وحالة Startup/Health.
+5. **Template Manager**: افحص Managed / Available / Missing.
+6. **System Center**: Startup Barrier وMigration history والتقارير والتنبيهات.
+7. **Access Control**: راجع صلاحيات المستخدمين قبل التسليم.
+
+# الصلاحيات
 
 هناك طبقتان مختلفتان:
 
-- **Eshtaya permissions**: تتحكم بمن يستطيع دخول أو إدارة وحدات الإضافة.
-- **Home Assistant Core access**: أدوار الحساب الأساسية مثل Administrator / User / Read Only، وتطبق على النظام كله حسب قدرات Home Assistant الحالية.
+- **Eshtaya permissions** تتحكم بمن يستطيع دخول أو إدارة وحدات Eshtaya.
+- **Home Assistant Core access** يتحكم بأدوار الحساب الأساسية المدعومة من Home Assistant.
 
-لا تخلط بين الطبقتين؛ إعطاء `template.manage` مثلًا لا يجعل المستخدم Home Assistant Administrator.
+إعطاء `template.manage` لا يجعل المستخدم Home Assistant Administrator.
 
-## متى تعتبر المنصة جاهزة؟
+# قبل التسليم
 
-قبل تسليم مشروع فعلي تأكد من:
+تأكد من:
 
-- عدم وجود Migration عالقة أو Error غير مفهوم.
+- Startup Barrier يصل إلى `ready` بعد Restart.
+- عدم ظهور Missing Output Repair كاذب أثناء تحميل Tuya أو أي Provider بطيء.
+- عدم وجود Migration Error غير مفهوم.
 - عدم وجود Managed Template بمصدر مفقود إلا إذا كان ذلك مقصودًا.
-- Multi-Way وSmart Groups بحالة سليمة.
+- Multi-Way وSmart Groups سليمة بعد انتهاء Startup.
 - ملفي Alexa متزامنين.
-- الصلاحيات مجربة بحساب مستخدم عادي، وليس بحساب Admin فقط.
-- وجود Backup حديث لإعدادات Home Assistant.
+- الصلاحيات مجربة بحساب مستخدم عادي.
+- وجود Home Assistant Backup حديث.
 
-للتفاصيل راجع الأدلة المتخصصة داخل مجلد `docs/ar` أو من Documentation Center داخل الإضافة.
+للتفاصيل راجع الأدلة المتخصصة داخل `docs/ar` أو Documentation Center داخل الإضافة.

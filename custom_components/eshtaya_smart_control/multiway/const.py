@@ -5,7 +5,7 @@ from typing import Final
 
 DOMAIN: Final = "eshtaya_smart_control"
 NAME: Final = "Eshtaya Smart Control · Multi-Way"
-VERSION: Final = "3.3.1"
+VERSION: Final = "3.4.0"
 MANUFACTURER: Final = "Eshtaya Smart"
 MODEL: Final = "Virtual Multi-Way Group"
 SMART_MODEL: Final = "Smart Group"
@@ -72,6 +72,8 @@ HEALTH_OUT_OF_SYNC: Final = "out_of_sync"
 HEALTH_RECOVERING: Final = "recovering"
 
 DEFAULT_SETTINGS: Final = {
+    # Kept for storage/backward compatibility. The unified v2.4 runtime cancels
+    # this legacy relative timer and uses the Home Assistant startup barrier instead.
     "startup_delay": 12,
     "watchdog_interval": 30,
     "command_timeout": 4.0,
@@ -92,9 +94,6 @@ DEFAULT_BEHAVIOR: Final = {
     "max_retries": None,
     "fallback_output": None,
     "source_policy": "latest_physical",
-    # After rapid physical input, keep re-reading the authoritative source until
-    # it settles, then perform one final convergence pass. This handles cloud
-    # integrations that publish quick ON/OFF edges late or out of order.
     "rapid_settle_ms": 2600,
     "source_stable_ms": 220,
 }
@@ -178,25 +177,20 @@ SMART_DEFAULT_BEHAVIOR: Final = {
     "reflect_controller": True,
     "performance_mode": PERFORMANCE_INSTANT,
     "auto_heal": True,
-    # Retry failed members only during the bounded verification window after a command.
     "verify_members": True,
-    # Never fight automations/devices forever unless the installer explicitly opts in.
     "continuous_enforcement": False,
-    # Cloud integrations may lose HA Context; suppress matching command echoes by state too.
     "command_echo_ms": 5000,
     "command_timeout": 3.0,
     "max_retries": 1,
     "member_delay_ms": 0,
     "failure_policy": SMART_FAILURE_CONTINUE,
     "manual_priority_ms": 2500,
-    # Final-source settle for rapid physical/member ON/OFF edges.
     "source_stable_ms": 220,
     "scene_guard_ms": 800,
     "flap_threshold": 8,
     "flap_window_sec": 10,
     "quarantine_sec": 60,
     "notify_on_fault": False,
-    # Action Groups (scene/script/automation)
     "action_execution": "parallel",
     "automation_skip_condition": True,
     "action_cooldown_ms": 250,

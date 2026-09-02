@@ -11,6 +11,12 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from . import multiway as multiway_module
 from .access_control import AccessControlManager
 from .const import (
+    CONF_LEGACY_HACS_CLEANUP,
+    CONF_LEGACY_MIGRATION_ENABLED,
+    CONF_LEGACY_SERVICE_ALIASES,
+    CONF_MIGRATE_ENTITY_MANAGER,
+    CONF_MIGRATE_MULTIWAY,
+    CONF_MIGRATE_TEMPLATE_MANAGER,
     DATA_ACCESS_CONTROL,
     DATA_ENTITY_MANAGER,
     DATA_ENTRY,
@@ -21,7 +27,10 @@ from .const import (
 from .entity_control.manager_unified import UnifiedEntityManager
 from .entity_control.websocket_access import async_register_websocket_commands as async_register_entity_ws
 from .legacy_cleanup import async_cleanup_legacy_hacs
-from .legacy_compat import async_register_legacy_service_aliases
+from .legacy_compat import (
+    async_register_legacy_service_aliases,
+    async_remove_legacy_service_aliases,
+)
 from .migration_center import MigrationCenterCoordinator
 from .multiway import async_remove_entry as async_remove_multiway_entry
 from .multiway import async_setup as async_setup_multiway
@@ -31,6 +40,10 @@ from .multiway.const import DATA_RUNTIME
 from .multiway.startup_safe_manager import StartupSafeMultiWayManager
 from .multiway.websocket_access import async_register_websocket_commands as async_register_multiway_ws
 from .panel import async_register_panel, async_remove_panel
+from .runtime_options import runtime_options
+from .template_manager import (
+    async_remove_legacy_services as async_remove_template_legacy_services,
+)
 from .template_manager import async_setup_services as async_setup_template_services
 from .template_manager.const import (
     DATA_TEMPLATE_MANAGER,
@@ -48,6 +61,15 @@ from .websocket_v22 import async_register_websocket_commands as async_register_c
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+_MAIN_INFLIGHT_PHASES = {
+    "prepared",
+    "legacy_disabled",
+    "validated",
+    "validation_failed",
+    "cleanup_partial",
+}
+_TEMPLATE_INFLIGHT_PHASES = {"prepared", "restart_required"}
+
 
 def _activate_v21_multiway_runtime() -> None:
     """Activate startup-safe and permission-aware Multi-Way adapters."""
@@ -60,7 +82,7 @@ def _schedule_legacy_hacs_cleanup(
     entry: ConfigEntry,
     migration: MigrationCenterCoordinator,
 ) -> None:
-    """Run HACS cleanup now or once Home Assistant has fully started."""
+    """Run explicitly enabled HACS cleanup now or after Home Assistant starts."""
 
     async def _cleanup() -> None:
         results = await async_cleanup_legacy_hacs(hass)
@@ -82,6 +104,22 @@ def _schedule_legacy_hacs_cleanup(
     entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_started))
 
 
+def _main_migration_inflight(status: dict) -> bool:
+    return bool(
+        status.get("legacy_found")
+        and not status.get("completed")
+        and status.get("phase") in _MAIN_INFLIGHT_PHASES
+    )
+
+
+def _template_migration_inflight(status: dict) -> bool:
+    return bool(
+        status.get("legacy_found")
+        and not status.get("completed")
+        and status.get("phase") in _TEMPLATE_INFLIGHT_PHASES
+    )
+
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
     _activate_v21_multiway_runtime()
@@ -90,43 +128,87 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async_register_tuya_ws(hass)
     async_register_template_ws(hass)
     async_register_core_ws(hass)
+    # Unified services are safe. Legacy service domains are handled only after the
+    # config entry options and migration state are known.
     await async_setup_template_services(hass)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up the unified platform and safely migrate all legacy Eshtaya tools."""
+    """Set up the unified platform with opt-in, restart-safe legacy migration."""
     data = hass.data.setdefault(DOMAIN, {})
     data[DATA_ENTRY] = entry
+    options = runtime_options(hass)
+
+    legacy_master = bool(options[CONF_LEGACY_MIGRATION_ENABLED])
+    migrate_entity = bool(options[CONF_MIGRATE_ENTITY_MANAGER])
+    migrate_multiway = bool(options[CONF_MIGRATE_MULTIWAY])
+    migrate_template = bool(options[CONF_MIGRATE_TEMPLATE_MANAGER])
+    legacy_aliases = bool(options[CONF_LEGACY_SERVICE_ALIASES])
+    legacy_hacs_cleanup = bool(options[CONF_LEGACY_HACS_CLEANUP])
 
     access_manager = AccessControlManager(hass)
     await access_manager.async_load()
     data[DATA_ACCESS_CONTROL] = access_manager
 
     migration = MigrationCenterCoordinator(hass)
+    # MigrationCenterCoordinator inherits these selectors from the transactional
+    # coordinator. Set them before reading/preparing any migration state.
+    migration.migrate_entity_manager = migrate_entity
+    migration.migrate_multiway = migrate_multiway
     data[DATA_MIGRATION] = migration
-    migration_state = await migration.async_prepare()
-    migration_active = bool(
-        migration_state.get("legacy_found") and not migration_state.get("completed")
+
+    previous_main_status = await migration.async_public_status()
+    resume_main = _main_migration_inflight(previous_main_status)
+    run_main_migration = resume_main or (
+        legacy_master and (migrate_entity or migrate_multiway)
     )
-    if migration_active:
-        await migration.async_quiesce_legacy()
+    migration_state = previous_main_status
+    migration_active = False
+    if run_main_migration:
+        migration_state = await migration.async_prepare()
+        migration_active = bool(
+            migration_state.get("legacy_found") and not migration_state.get("completed")
+        )
+        if migration_active:
+            await migration.async_quiesce_legacy()
+    else:
+        _LOGGER.info(
+            "Legacy Entity/Multi-Way migration is disabled; no legacy scan, copy, "
+            "unload or cleanup will be performed"
+        )
 
     template_store = TemplateManagerStore(hass)
     await template_store.async_load()
-    template_migration = LegacyTemplateMigration(hass, template_store)
-    data[DATA_TEMPLATE_MIGRATION] = template_migration
-    template_migration_state: dict = {}
+    previous_template_status = template_store.migration()
+    resume_template = _template_migration_inflight(previous_template_status)
+    run_template_migration = resume_template or (legacy_master and migrate_template)
+
+    template_migration: LegacyTemplateMigration | None = None
+    template_migration_state: dict = previous_template_status
+    template_migration_active = False
+    template_restart_required = False
+
+    if run_template_migration:
+        template_migration = LegacyTemplateMigration(hass, template_store)
+        data[DATA_TEMPLATE_MIGRATION] = template_migration
+    else:
+        data[DATA_TEMPLATE_MIGRATION] = None
+        _LOGGER.info(
+            "Legacy Template Manager migration is disabled; existing unified "
+            "Template Manager data will be loaded without scanning/removing legacy files"
+        )
 
     try:
-        template_migration_state = await template_migration.async_prepare()
-        template_migration_active = bool(
-            template_migration_state.get("legacy_found")
-            and not template_migration_state.get("completed")
-        )
-        template_restart_required = (
-            template_migration_state.get("phase") == "restart_required"
-        )
+        if template_migration is not None:
+            template_migration_state = await template_migration.async_prepare()
+            template_migration_active = bool(
+                template_migration_state.get("legacy_found")
+                and not template_migration_state.get("completed")
+            )
+            template_restart_required = (
+                template_migration_state.get("phase") == "restart_required"
+            )
 
         template_manager = TemplateManager(hass, template_store)
         data[DATA_TEMPLATE_MANAGER] = template_manager
@@ -142,21 +224,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         await template_manager.async_start()
 
-        if template_migration_active and not template_restart_required:
+        if template_migration is not None and template_migration_active and not template_restart_required:
             template_migration_state = await template_migration.async_finalize()
-            if template_migration_state.get("completed"):
-                await async_setup_template_services(
-                    hass,
-                    register_legacy=True,
-                    replace_legacy=True,
-                )
         elif template_restart_required:
             _LOGGER.warning(
                 "Template Manager migration is staged and requires one Home Assistant "
                 "restart to release legacy entity IDs. No duplicate entities were created."
             )
-        elif not hass.config_entries.async_entries(TEMPLATE_LEGACY_DOMAIN):
-            await async_setup_template_services(hass, register_legacy=True)
+
+        # Legacy aliases are now explicit compatibility options, independent from
+        # normal unified services. Never register them just because legacy migration
+        # happened to complete.
+        old_multiway_entries = hass.config_entries.async_entries("eshtaya_multiway")
+        old_template_entries = hass.config_entries.async_entries(TEMPLATE_LEGACY_DOMAIN)
+        if legacy_aliases:
+            if not old_multiway_entries:
+                async_register_legacy_service_aliases(hass)
+            if not old_template_entries and not template_restart_required:
+                await async_setup_template_services(
+                    hass,
+                    register_legacy=True,
+                    replace_legacy=True,
+                )
+        else:
+            # On an options-flow reload, aliases from a previous Eshtaya runtime can
+            # still exist in ServiceRegistry. Remove them only when no actual old
+            # config entry/component owns that legacy domain.
+            if not old_multiway_entries and "eshtaya_multiway" not in hass.config.components:
+                async_remove_legacy_service_aliases(hass)
+            if (
+                not old_template_entries
+                and TEMPLATE_LEGACY_DOMAIN not in hass.config.components
+                and not template_restart_required
+            ):
+                async_remove_template_legacy_services(hass)
 
         await async_register_panel(hass)
 
@@ -171,14 +272,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 )
             await migration.async_finalize(runtime)
 
-        if not hass.config_entries.async_entries("eshtaya_multiway"):
-            async_register_legacy_service_aliases(hass)
-
-        template_cleanup_ready = bool(
-            template_migration_state.get("legacy_found")
-            and template_migration_state.get("completed")
+        cleanup_ready = bool(
+            migration_active
+            or (
+                template_migration_state.get("legacy_found")
+                and template_migration_state.get("completed")
+            )
         )
-        if migration_active or template_cleanup_ready:
+        if legacy_hacs_cleanup and cleanup_ready:
             _schedule_legacy_hacs_cleanup(hass, entry, migration)
 
         async def _entity_registry_changed(event) -> None:
@@ -198,10 +299,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 await async_unload_multiway_entry(hass, entry)
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Could not unload unified platforms before rollback")
-        try:
-            await template_migration.async_rollback(str(err))
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Template Manager migration rollback failed")
+        if template_migration is not None:
+            try:
+                await template_migration.async_rollback(str(err))
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Template Manager migration rollback failed")
         if migration_active:
             try:
                 await migration.async_rollback(str(err))
@@ -216,6 +318,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Refresh cheap runtime config; OptionsFlowWithReload handles full reload."""
     manager = hass.data.get(DOMAIN, {}).get(DATA_TUYA_MANAGER)
     if manager:
         manager._reload_config()

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.4.0 — Startup Barrier, false-missing suppression & opt-in legacy migration
+
+- Fixed false `Multi-way output entity is missing` / `missing_controller` Repair issues that could appear after a Home Assistant restart when official Tuya or another entity provider had not finished restoring yet.
+- Added `tuya` as a Home Assistant `after_dependencies` integration so Eshtaya Smart Control is scheduled after official Tuya when it is present.
+- Replaced the old fixed Multi-Way startup-delay decision with a lifecycle-aware **Startup Barrier** that waits for Home Assistant startup completion before enabling physical reconciliation and missing-entity repairs.
+- Added Entity Registry / Config Entry ownership checks so referenced outputs, controllers and fallbacks owned by integrations in setup/retry/unload states are treated as still loading instead of missing.
+- Added a configurable post-provider settle window (default 15 seconds) and bounded maximum startup wait (default 240 seconds).
+- Added a separate missing-entity Repair grace period (default 90 seconds) plus repeated confirmation requirement (default 3 checks) before a real missing-output/controller Repair can be created.
+- Clears persisted transient missing-output/controller Repair issues at the beginning of protected startup and recreates them only after genuine post-start absence is confirmed.
+- Keeps Multi-Way state events inert while `ready=false`, preventing startup entity-restoration edges from being interpreted as physical user commands.
+- Reports startup protection as `starting/recovering` rather than degrading the platform Health Score while providers are still loading.
+- Added startup-barrier state and effective runtime options to System Center / sanitized support reports.
+- Added a full **Configure** options flow under Home Assistant Devices & Services with startup wait, referenced-integration wait, settle, maximum wait, Repair grace and confirmation controls.
+- Changed retired Eshtaya integration migration to **opt-in by default**. A new installation/update no longer intentionally scans, copies, unloads, removes or cleans old Eshtaya integrations unless the migration master option is enabled.
+- Added independent migration selectors for the former Entity Manager, Multi-Way/Smart Groups and Template Manager, plus separate HACS cleanup and legacy-service-alias controls.
+- Preserves transaction safety by allowing a migration already in `prepared` / `restart_required` cutover before 2.4.0 to finish even if the new master migration switch is off.
+- Added safe rescan behavior: a historical `no_legacy` result does not permanently block a migration that the operator explicitly enables later, while a genuinely completed migration is not repeated unnecessarily.
+- Prevented unified service setup from touching a real old Template Manager service domain when legacy migration/compatibility is disabled.
+- Kept **native Home Assistant Group discovery and transactional Take Over** independent from retired Eshtaya migration controls; disabling legacy migration does not disable HA Group discovery/import workflows.
+- Updated Arabic/English Configure translations, Startup/Multi-Way/Migration/Getting Started/Template Manager documentation and README to match the 2.4.0 behavior.
+- Added CI invariants that fail the build if official Tuya loses `after_dependencies`, legacy migration becomes enabled by default, or required Startup Barrier/Repair protection hooks disappear.
+- Added JSON validation for manifest, strings and Arabic/English translations alongside HACS, Hassfest, Python compilation, JavaScript syntax, documentation parity and release archive packaging.
+- Bumped Eshtaya Smart Control to `2.4.0` and the embedded Multi-Way engine marker to `3.4.0`.
+
 ## 2.3.1 — Template Manager hotfix, safer migration & documentation sync
 
 - Fixed the frontend permission-map bug that could show Template Manager and then reject the click with `This role does not have access to that module.` even when `template.view` was present.

@@ -12,77 +12,79 @@
       "already_configured": "تم إعداد Eshtaya Smart Control مسبقاً."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "حماية الإقلاع ونقل الأدوات القديمة",
+        "description": "تحكم بحماية الإقلاع الجديدة في 2.4 وبالنقل الاختياري من إضافات Eshtaya القديمة. اكتشاف واستلام مجموعات Home Assistant الأصلية مستقل عن Legacy Migration ويظل متاحاً.",
+        "data": {
+          "startup_wait_home_assistant": "انتظر اكتمال تشغيل Home Assistant",
+          "startup_wait_referenced_integrations": "انتظر التكاملات المالكة لكيانات Multi-Way المستخدمة",
+          "startup_settle_seconds": "مدة الاستقرار بعد جاهزية المصادر (ثانية)",
+          "startup_max_wait_seconds": "أقصى مدة انتظار لحاجز الإقلاع (ثانية)",
+          "repair_grace_seconds": "مهلة الكيان المفقود بعد الإقلاع قبل إصدار Repair (ثانية)",
+          "repair_missing_confirmations": "عدد مرات تأكيد الفقدان قبل إصدار Repair",
+          "legacy_migration_enabled": "تفعيل نقل إضافات Eshtaya القديمة",
+          "migrate_legacy_entity_manager": "نقل Entity Manager القديم",
+          "migrate_legacy_multiway": "نقل Multi-Way / Smart Groups القديمة",
+          "migrate_legacy_template_manager": "نقل Template Manager القديم",
+          "legacy_hacs_cleanup": "حذف مستودعات HACS القديمة بعد التحقق من النقل",
+          "legacy_service_aliases": "الإبقاء على توافق أسماء الخدمات القديمة"
+        },
+        "data_description": {
+          "startup_wait_home_assistant": "موصى به. يبقى Multi-Way في وضع حماية حتى يعلن Home Assistant اكتمال مرحلة الإقلاع.",
+          "startup_wait_referenced_integrations": "موصى به. إذا كان الكيان مسجلاً لكن التكامل الذي يملكه ما زال يحمل أو يعيد المحاولة، ينتظر Eshtaya ولا يعتبره مفقوداً.",
+          "startup_settle_seconds": "فترة هدوء إضافية بعد توقف المصادر عن التحميل. الافتراضي 15 ثانية.",
+          "startup_max_wait_seconds": "حد أقصى يمنع أي تكامل معطل من إبقاء Eshtaya في الانتظار للأبد. الافتراضي 240 ثانية.",
+          "repair_grace_seconds": "يجب أن يبقى الكيان غائباً بعد انتهاء حاجز الإقلاع طوال هذه المدة قبل أن يصبح مؤهلاً لإصدار Repair. الافتراضي 90 ثانية.",
+          "repair_missing_confirmations": "بعد انتهاء المهلة يجب رصد الغياب عدة مرات متتالية. الافتراضي 3 مرات.",
+          "legacy_migration_enabled": "مغلق افتراضياً في 2.4. فعّله فقط عندما تريد عمداً نقل أداة Eshtaya قديمة. إذا كان هناك Cutover آمن بدأ قبل التحديث ولم يكتمل، يسمح له النظام بالإكمال تلقائياً.",
+          "migrate_legacy_entity_manager": "يطبق فقط عندما يكون Legacy Migration مفعلاً.",
+          "migrate_legacy_multiway": "يطبق فقط عندما يكون Legacy Migration مفعلاً.",
+          "migrate_legacy_template_manager": "يطبق فقط عندما يكون Legacy Migration مفعلاً.",
+          "legacy_hacs_cleanup": "مغلق افتراضياً. التنظيف لا يتم إلا بعد تحقق ناجح وفقط عند تفعيل هذا الخيار.",
+          "legacy_service_aliases": "مغلق افتراضياً. فعّله فقط إذا كانت لديك Automations قديمة ما زالت تستدعي خدمات eshtaya_multiway أو eshtaya_template_manager."
+        }
+      }
+    }
+  },
   "entity": {
     "light": {
-      "group_control": {
-        "name": "التحكم"
-      },
-      "smart_group_control": {
-        "name": "تحكم المجموعة"
-      }
+      "group_control": {"name": "التحكم"},
+      "smart_group_control": {"name": "تحكم المجموعة"}
     },
     "switch": {
-      "group_control": {
-        "name": "التحكم"
-      },
-      "group_enabled": {
-        "name": "المزامنة"
-      },
-      "smart_group_control": {
-        "name": "تحكم المجموعة"
-      },
-      "smart_group_enabled": {
-        "name": "تفعيل المجموعة"
-      }
+      "group_control": {"name": "التحكم"},
+      "group_enabled": {"name": "المزامنة"},
+      "smart_group_control": {"name": "تحكم المجموعة"},
+      "smart_group_enabled": {"name": "تفعيل المجموعة"}
     },
     "sensor": {
-      "health": {
-        "name": "حالة المجموعة"
-      },
-      "last_source": {
-        "name": "آخر زر"
-      },
-      "last_latency": {
-        "name": "آخر زمن استجابة"
-      },
-      "smart_group_health": {
-        "name": "صحة المجموعة"
-      },
-      "smart_group_quality": {
-        "name": "درجة الجودة"
-      },
-      "smart_group_last_source": {
-        "name": "آخر مصدر"
-      },
-      "smart_group_latency": {
-        "name": "آخر زمن استجابة"
-      }
+      "health": {"name": "حالة المجموعة"},
+      "last_source": {"name": "آخر زر"},
+      "last_latency": {"name": "آخر زمن استجابة"},
+      "smart_group_health": {"name": "صحة المجموعة"},
+      "smart_group_quality": {"name": "درجة الجودة"},
+      "smart_group_last_source": {"name": "آخر مصدر"},
+      "smart_group_latency": {"name": "آخر زمن استجابة"}
     },
     "binary_sensor": {
-      "in_sync": {
-        "name": "متزامن"
-      },
-      "smart_group_healthy": {
-        "name": "المجموعة سليمة"
-      }
+      "in_sync": {"name": "متزامن"},
+      "smart_group_healthy": {"name": "المجموعة سليمة"}
     },
     "button": {
-      "sync_now": {
-        "name": "مزامنة الآن"
-      },
-      "smart_group_sync": {
-        "name": "مزامنة الآن"
-      }
+      "sync_now": {"name": "مزامنة الآن"},
+      "smart_group_sync": {"name": "مزامنة الآن"}
     }
   },
   "issues": {
     "missing_output": {
       "title": "خرج مجموعة الفكسل مفقود",
-      "description": "الكيان {entity} المستخدم كخرج فعلي في المجموعة {group} لم يعد موجوداً. افتح Multi-Way Control واستبدله أو أعد الكيان الأصلي."
+      "description": "الكيان {entity} المستخدم كخرج فعلي في المجموعة {group} ما زال مفقوداً بعد انتهاء حماية إقلاع Home Assistant ومهلة التأكيد المحددة. افتح Multi-Way Control واستبدله أو أعد الكيان الأصلي."
     },
     "missing_controller": {
       "title": "زر فرعي في مجموعة الفكسل مفقود",
-      "description": "الكيان {entity} المستخدم كزر تحكم في المجموعة {group} لم يعد موجوداً. افتح Multi-Way Control واستبدله أو احذفه من المجموعة."
+      "description": "الكيان {entity} المستخدم كزر تحكم في المجموعة {group} ما زال مفقوداً بعد انتهاء حماية إقلاع Home Assistant ومهلة التأكيد المحددة. افتح Multi-Way Control واستبدله أو احذفه من المجموعة."
     },
     "output_unresponsive": {
       "title": "الخرج الفعلي لا يؤكد الأوامر",
@@ -94,12 +96,7 @@
     }
   },
   "selector": {
-    "group_state": {
-      "options": {
-        "on": "تشغيل",
-        "off": "إيقاف"
-      }
-    },
+    "group_state": {"options": {"on": "تشغيل", "off": "إيقاف"}},
     "tuya_region": {
       "options": {
         "eu": "أوروبا الوسطى",
@@ -114,115 +111,19 @@
     }
   },
   "services": {
-    "sync_group": {
-      "name": "مزامنة مجموعة",
-      "description": "إعادة مزامنة مجموعة فكسل واحدة واعتماد الخرج الفعلي كمرجع.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف المجموعة",
-          "description": "المعرّف الداخلي الظاهر في لوحة الإدارة وخصائص الكيان الافتراضي."
-        }
-      }
-    },
-    "sync_all": {
-      "name": "مزامنة كل المجموعات",
-      "description": "إعادة مزامنة جميع مجموعات الفكسل المفعّلة."
-    },
-    "enable_group": {
-      "name": "تفعيل مجموعة",
-      "description": "تفعيل المزامنة لمجموعة فكسل.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف المجموعة",
-          "description": "المعرّف الداخلي للمجموعة."
-        }
-      }
-    },
-    "disable_group": {
-      "name": "تعطيل مجموعة",
-      "description": "تعطيل المزامنة بدون حذف إعدادات المجموعة.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف المجموعة",
-          "description": "المعرّف الداخلي للمجموعة."
-        }
-      }
-    },
-    "set_group_state": {
-      "name": "تغيير حالة المجموعة",
-      "description": "تغيير الخرج الفعلي وباقي الأزرار من خلال محرك المعاملات الآمن.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف المجموعة",
-          "description": "المعرّف الداخلي للمجموعة."
-        },
-        "state": {
-          "name": "الحالة",
-          "description": "الحالة المطلوبة للمجموعة."
-        }
-      }
-    },
-    "test_group": {
-      "name": "فحص المجموعة",
-      "description": "إرجاع تقرير جاهزية بدون تشغيل أو إطفاء الحمل الفعلي.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف المجموعة",
-          "description": "المعرّف الداخلي للمجموعة."
-        }
-      }
-    },
-    "set_smart_group_state": {
-      "name": "تغيير حالة Smart Group",
-      "description": "تشغيل أو إطفاء جميع أعضاء Smart Group من خلال المحرك الآمن.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف الجروب",
-          "description": "المعرّف الداخلي."
-        },
-        "state": {
-          "name": "الحالة",
-          "description": "تشغيل أو إيقاف."
-        }
-      }
-    },
-    "sync_smart_group": {
-      "name": "مزامنة Smart Group",
-      "description": "إعادة توحيد حالة أعضاء Smart Group.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف الجروب",
-          "description": "المعرّف الداخلي."
-        }
-      }
-    },
-    "test_smart_group": {
-      "name": "فحص Smart Group",
-      "description": "إرجاع تقرير تشخيص غير هدّام للجروب.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف الجروب",
-          "description": "المعرّف الداخلي."
-        }
-      }
-    },
-    "run_smart_group": {
-      "name": "تشغيل Action Group",
-      "description": "تشغيل جميع الأعضاء المفعّلين في جروب السيناريوهات أو السكربتات أو الأوتوميشنات.",
-      "fields": {
-        "group_id": {
-          "name": "معرّف الجروب",
-          "description": "المعرّف الداخلي لـ Action Group."
-        }
-      }
-    }
+    "sync_group": {"name": "مزامنة مجموعة", "description": "إعادة مزامنة مجموعة فكسل واحدة واعتماد الخرج الفعلي كمرجع.", "fields": {"group_id": {"name": "معرّف المجموعة", "description": "المعرّف الداخلي الظاهر في لوحة الإدارة وخصائص الكيان الافتراضي."}}},
+    "sync_all": {"name": "مزامنة كل المجموعات", "description": "إعادة مزامنة جميع مجموعات الفكسل المفعّلة."},
+    "enable_group": {"name": "تفعيل مجموعة", "description": "تفعيل المزامنة لمجموعة فكسل.", "fields": {"group_id": {"name": "معرّف المجموعة", "description": "المعرّف الداخلي للمجموعة."}}},
+    "disable_group": {"name": "تعطيل مجموعة", "description": "تعطيل المزامنة بدون حذف إعدادات المجموعة.", "fields": {"group_id": {"name": "معرّف المجموعة", "description": "المعرّف الداخلي للمجموعة."}}},
+    "set_group_state": {"name": "تغيير حالة المجموعة", "description": "تغيير الخرج الفعلي وباقي الأزرار من خلال محرك المعاملات الآمن.", "fields": {"group_id": {"name": "معرّف المجموعة", "description": "المعرّف الداخلي للمجموعة."}, "state": {"name": "الحالة", "description": "الحالة المطلوبة للمجموعة."}}},
+    "test_group": {"name": "فحص المجموعة", "description": "إرجاع تقرير جاهزية بدون تشغيل أو إطفاء الحمل الفعلي.", "fields": {"group_id": {"name": "معرّف المجموعة", "description": "المعرّف الداخلي للمجموعة."}}},
+    "set_smart_group_state": {"name": "تغيير حالة Smart Group", "description": "تشغيل أو إطفاء جميع أعضاء Smart Group من خلال المحرك الآمن.", "fields": {"group_id": {"name": "معرّف الجروب", "description": "المعرّف الداخلي."}, "state": {"name": "الحالة", "description": "تشغيل أو إيقاف."}}},
+    "sync_smart_group": {"name": "مزامنة Smart Group", "description": "إعادة توحيد حالة أعضاء Smart Group.", "fields": {"group_id": {"name": "معرّف الجروب", "description": "المعرّف الداخلي."}}},
+    "test_smart_group": {"name": "فحص Smart Group", "description": "إرجاع تقرير تشخيص غير هدّام للجروب.", "fields": {"group_id": {"name": "معرّف الجروب", "description": "المعرّف الداخلي."}}},
+    "run_smart_group": {"name": "تشغيل Action Group", "description": "تشغيل جميع الأعضاء المفعّلين في جروب السيناريوهات أو السكربتات أو الأوتوميشنات.", "fields": {"group_id": {"name": "معرّف الجروب", "description": "المعرّف الداخلي لـ Action Group."}}}
   },
   "exceptions": {
-    "not_loaded": {
-      "message": "تكامل Eshtaya Multi-Way Control غير محمّل."
-    },
-    "group_error": {
-      "message": "فشلت عملية مجموعة الفكسل: {error}"
-    }
+    "not_loaded": {"message": "تكامل Eshtaya Multi-Way Control غير محمّل."},
+    "group_error": {"message": "فشلت عملية مجموعة الفكسل: {error}"}
   }
 }

@@ -8,8 +8,17 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 
-from .const import DATA_ENTITY_MANAGER, DATA_MIGRATION, DATA_TUYA_MANAGER, DOMAIN, VERSION
+from .const import (
+    DATA_ENTITY_MANAGER,
+    DATA_MIGRATION,
+    DATA_STARTUP_STATUS,
+    DATA_TUYA_MANAGER,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    VERSION,
+)
 from .multiway.const import DATA_RUNTIME
+from .runtime_options import runtime_options
 
 
 def _utcnow() -> str:
@@ -17,8 +26,13 @@ def _utcnow() -> str:
 
 
 def _recommendations(
-    entity_stats: dict[str, Any], file_sync: dict[str, Any] | None,
-    tuya: dict[str, Any], multi: dict[str, Any], smart: dict[str, Any], migration: dict[str, Any]
+    entity_stats: dict[str, Any],
+    file_sync: dict[str, Any] | None,
+    tuya: dict[str, Any],
+    multi: dict[str, Any],
+    smart: dict[str, Any],
+    migration: dict[str, Any],
+    startup: dict[str, Any],
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     phase = str(migration.get("phase") or "")
@@ -28,6 +42,19 @@ def _recommendations(
     elif migration.get("legacy_found") and not migration.get("completed"):
         items.append({"id": "migration_running", "severity": "info", "target": "system"})
 
+    # Startup protection is an expected lifecycle state, never a fault. Surface it
+    # as informational and suppress downstream Multi-Way degradation until ready.
+    if startup and not startup.get("ready", False):
+        items.append(
+            {
+                "id": "startup_protection_active",
+                "severity": "info",
+                "target": "system",
+                "phase": startup.get("phase"),
+                "pending": startup.get("pending_count", 0),
+            }
+        )
+
     if file_sync and file_sync.get("ok") is False:
         items.append({"id": "alexa_files_out_of_sync", "severity": "warning", "target": "entity", "action": "repair_alexa_files"})
 
@@ -36,12 +63,12 @@ def _recommendations(
     if total and unavailable >= max(5, round(total * 0.10)):
         items.append({"id": "many_unavailable_entities", "severity": "warning", "target": "entity", "count": unavailable})
 
-    if int(multi.get("degraded") or 0):
+    if startup.get("ready", True) and int(multi.get("degraded") or 0):
         items.append({"id": "multiway_degraded", "severity": "warning", "target": "multi", "count": int(multi.get("degraded") or 0)})
     if int(smart.get("degraded") or 0):
         items.append({"id": "smart_groups_degraded", "severity": "warning", "target": "multi", "count": int(smart.get("degraded") or 0)})
 
-    # Tuya is intentionally optional in v2, so this is informational and does not reduce health.
+    # Tuya is intentionally optional, so this is informational and does not reduce health.
     if not tuya.get("configured"):
         items.append({"id": "tuya_not_activated", "severity": "info", "target": "tuya"})
 
@@ -51,7 +78,7 @@ def _recommendations(
     return items
 
 
-def _health_score(entity_stats, file_sync, multi, smart, migration) -> int:
+def _health_score(entity_stats, file_sync, multi, smart, migration, startup) -> int:
     score = 100
     phase = str(migration.get("phase") or "")
     if migration.get("errors") or phase in {"validation_failed", "rolled_back", "cleanup_partial"}:
@@ -65,9 +92,16 @@ def _health_score(entity_stats, file_sync, multi, smart, migration) -> int:
     if total:
         ratio = unavailable / total
         score -= min(20, round(ratio * 50))
-    score -= min(20, int(multi.get("degraded") or 0) * 5)
+    if startup.get("ready", True):
+        score -= min(20, int(multi.get("degraded") or 0) * 5)
     score -= min(20, int(smart.get("degraded") or 0) * 4)
     return max(0, min(100, score))
+
+
+def _public_options(hass: HomeAssistant) -> dict[str, Any]:
+    """Expose only the safe operational options; never Tuya credentials."""
+    current = runtime_options(hass)
+    return {key: current.get(key, value) for key, value in DEFAULT_OPTIONS.items()}
 
 
 async def _snapshot(hass: HomeAssistant) -> dict[str, Any]:
@@ -76,6 +110,7 @@ async def _snapshot(hass: HomeAssistant) -> dict[str, Any]:
     tuya_manager = data.get(DATA_TUYA_MANAGER)
     migration = data.get(DATA_MIGRATION)
     runtime = data.get(DATA_RUNTIME) or {}
+    startup = dict(data.get(DATA_STARTUP_STATUS) or {})
 
     entity_stats: dict[str, Any] = {}
     file_sync = None
@@ -88,7 +123,7 @@ async def _snapshot(hass: HomeAssistant) -> dict[str, Any]:
 
     manager = runtime.get("manager")
     smart_manager = runtime.get("smart_manager")
-    multi = manager.summary() if manager else {"groups": 0, "healthy": 0, "degraded": 0, "ready": False}
+    multi = manager.summary() if manager else {"groups": 0, "healthy": 0, "degraded": 0, "ready": False, "starting": True}
     smart = smart_manager.summary() if smart_manager else {"groups": 0, "healthy": 0, "degraded": 0, "average_quality": 100}
     tuya = tuya_manager.public_status() if tuya_manager else {"configured": False, "activated": False}
     migration_status = (
@@ -100,16 +135,23 @@ async def _snapshot(hass: HomeAssistant) -> dict[str, Any]:
         "entity_manager": bool(hass.config_entries.async_entries("eshtaya_entity_manager")),
         "multiway": bool(hass.config_entries.async_entries("eshtaya_multiway")),
     }
-    recommendations = _recommendations(entity_stats, file_sync, tuya, multi, smart, migration_status)
-    score = _health_score(entity_stats, file_sync, multi, smart, migration_status)
+    recommendations = _recommendations(
+        entity_stats, file_sync, tuya, multi, smart, migration_status, startup
+    )
+    score = _health_score(entity_stats, file_sync, multi, smart, migration_status, startup)
     return {
         "version": VERSION,
         "generated_at": _utcnow(),
-        "health": {"score": score, "state": "excellent" if score >= 90 else "good" if score >= 75 else "attention" if score >= 55 else "critical"},
+        "health": {
+            "score": score,
+            "state": "excellent" if score >= 90 else "good" if score >= 75 else "attention" if score >= 55 else "critical",
+        },
         "entity": {"stats": entity_stats, "file_sync": file_sync, "maintenance": maintenance},
         "tuya": tuya,
         "multiway": multi,
         "smart_groups": smart,
+        "startup": startup,
+        "settings": _public_options(hass),
         "legacy": legacy,
         "migration": migration_status,
         "recommendations": recommendations,
@@ -118,7 +160,12 @@ async def _snapshot(hass: HomeAssistant) -> dict[str, Any]:
 
 @callback
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
-    for command in (websocket_overview, websocket_migration_report, websocket_system_report, websocket_system_action):
+    for command in (
+        websocket_overview,
+        websocket_migration_report,
+        websocket_system_report,
+        websocket_system_action,
+    ):
         websocket_api.async_register_command(hass, command)
 
 
@@ -135,9 +182,20 @@ async def websocket_overview(hass: HomeAssistant, connection, msg: dict[str, Any
 async def websocket_migration_report(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     migration = hass.data.get(DOMAIN, {}).get(DATA_MIGRATION)
     if migration is None:
-        connection.send_result(msg["id"], {"schema": 1, "generated_at": _utcnow(), "integration": {"domain": DOMAIN, "version": VERSION}, "migration": {"phase": "not_started", "completed": False, "legacy_found": False}, "notes": ["Migration coordinator is not loaded."]})
+        connection.send_result(
+            msg["id"],
+            {
+                "schema": 1,
+                "generated_at": _utcnow(),
+                "integration": {"domain": DOMAIN, "version": VERSION},
+                "migration": {"phase": "not_started", "completed": False, "legacy_found": False},
+                "notes": ["Migration coordinator is not loaded."],
+            },
+        )
         return
-    connection.send_result(msg["id"], await migration.async_report())
+    report = await migration.async_report()
+    report["configured_options"] = _public_options(hass)
+    connection.send_result(msg["id"], report)
 
 
 @websocket_api.require_admin
@@ -146,28 +204,34 @@ async def websocket_migration_report(hass: HomeAssistant, connection, msg: dict[
 async def websocket_system_report(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     """Return a sanitized support report; raw storage and cloud credentials are never included."""
     snapshot = await _snapshot(hass)
-    connection.send_result(msg["id"], {
-        "schema": 2,
-        "generated_at": _utcnow(),
-        "integration": {"domain": DOMAIN, "version": VERSION},
-        "system": snapshot,
-        "privacy": [
-            "Tuya Client Secret and access tokens are excluded.",
-            "Raw migration backup/storage payloads are excluded.",
-            "The report is intended for diagnostics and support.",
-        ],
-    })
+    connection.send_result(
+        msg["id"],
+        {
+            "schema": 3,
+            "generated_at": _utcnow(),
+            "integration": {"domain": DOMAIN, "version": VERSION},
+            "system": snapshot,
+            "privacy": [
+                "Tuya Client Secret and access tokens are excluded.",
+                "Raw migration backup/storage payloads are excluded.",
+                "Only non-secret startup and migration settings are included.",
+                "The report is intended for diagnostics and support.",
+            ],
+        },
+    )
 
 
 SYSTEM_ACTIONS = {"repair_alexa_files", "sync_groups", "refresh_tuya", "refresh_all"}
 
 
 @websocket_api.require_admin
-@websocket_api.websocket_command({
-    vol.Required("type"): f"{DOMAIN}/system_action",
-    vol.Required("action"): vol.In(SYSTEM_ACTIONS),
-    vol.Optional("confirm_physical", default=False): bool,
-})
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/system_action",
+        vol.Required("action"): vol.In(SYSTEM_ACTIONS),
+        vol.Optional("confirm_physical", default=False): bool,
+    }
+)
 @websocket_api.async_response
 async def websocket_system_action(hass: HomeAssistant, connection, msg: dict[str, Any]) -> None:
     data = hass.data.get(DOMAIN, {})
@@ -201,7 +265,7 @@ async def websocket_system_action(hass: HomeAssistant, connection, msg: dict[str
                     if group_id:
                         try:
                             smart_results[group_id] = await smart_manager.async_sync(group_id)
-                        except Exception as err:  # individual group faults should remain visible
+                        except Exception as err:
                             smart_results[group_id] = {"ok": False, "error": str(err)}
             result["smart_groups"] = smart_results
 
