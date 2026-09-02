@@ -21,7 +21,7 @@ from ..const import (
     DOMAIN,
 )
 from ..runtime_options import option
-from .const import HEALTH_RECOVERING, UNAVAILABLE_STATES
+from .const import HEALTH_RECOVERING
 from .manager import MultiWayManager
 
 
@@ -68,7 +68,9 @@ class StartupSafeMultiWayManager(MultiWayManager):
 
         wait_for_ha = bool(option(self.hass, CONF_STARTUP_WAIT_HA))
         if not wait_for_ha or self.hass.is_running:
-            self._schedule_startup_barrier("integration_reload" if self.hass.is_running else "startup_wait_disabled")
+            self._schedule_startup_barrier(
+                "integration_reload" if self.hass.is_running else "startup_wait_disabled"
+            )
             return
 
         self._set_startup_status(
@@ -214,7 +216,15 @@ class StartupSafeMultiWayManager(MultiWayManager):
         )
         await self._async_initialize_groups()
 
-    def _set_startup_status(self, *, phase: str, ready: bool, pending: list[str], timed_out: bool, **extra) -> None:
+    def _set_startup_status(
+        self,
+        *,
+        phase: str,
+        ready: bool,
+        pending: list[str],
+        timed_out: bool,
+        **extra,
+    ) -> None:
         data = self.hass.data.setdefault(DOMAIN, {})
         data[DATA_STARTUP_STATUS] = {
             "phase": phase,
@@ -347,6 +357,20 @@ class StartupSafeMultiWayManager(MultiWayManager):
                 runtime.health = HEALTH_RECOVERING
                 return
         super()._update_health(group_id)
+
+    def summary(self) -> dict:
+        """Expose protected startup without turning it into a degraded warning."""
+        result = super().summary()
+        if not self._ready:
+            result["degraded"] = 0
+            result["healthy"] = 0
+            result["starting"] = True
+        else:
+            result["starting"] = False
+        result["startup"] = dict(
+            self.hass.data.get(DOMAIN, {}).get(DATA_STARTUP_STATUS) or {}
+        )
+        return result
 
     async def _async_initialize_groups(self) -> None:
         await super()._async_initialize_groups()
