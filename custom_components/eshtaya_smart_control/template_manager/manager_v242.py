@@ -1,4 +1,4 @@
-"""v2.4.2 Template Manager behavior for generated package adoption."""
+"""v2.4.2+ Template Manager behavior for generated package adoption."""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -6,13 +6,14 @@ from typing import Any
 
 from homeassistant.helpers import entity_registry as er
 
-from .generated_package import GeneratedPackageManager
+from .editor_v243 import FullTemplateEditorMixin
+from .generated_package_v243 import GeneratedPackageManager
 from .manager import TemplateManager as _BaseTemplateManager
 
 _ACTIVE_LOCK_PHASES = {"prepared", "restart_required"}
 
 
-class TemplateManager(_BaseTemplateManager):
+class TemplateManager(FullTemplateEditorMixin, _BaseTemplateManager):
     """Treat Eshtaya generated YAML templates as editable managed records."""
 
     def __init__(self, hass, store) -> None:
