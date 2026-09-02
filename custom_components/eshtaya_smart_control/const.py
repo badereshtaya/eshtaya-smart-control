@@ -38,15 +38,14 @@ CONF_STARTUP_MAX_WAIT_SECONDS: Final = "startup_max_wait_seconds"
 CONF_REPAIR_GRACE_SECONDS: Final = "repair_grace_seconds"
 CONF_REPAIR_CONFIRMATIONS: Final = "repair_missing_confirmations"
 
-# Legacy migration controls. These do not control discovery/takeover of native
-# Home Assistant Group helpers; that feature remains independent.
+# Legacy migration controls. Native Home Assistant Group discovery/takeover is
+# intentionally not a migration option and remains available independently.
 CONF_LEGACY_MIGRATION_ENABLED: Final = "legacy_migration_enabled"
 CONF_MIGRATE_ENTITY_MANAGER: Final = "migrate_legacy_entity_manager"
 CONF_MIGRATE_MULTIWAY: Final = "migrate_legacy_multiway"
 CONF_MIGRATE_TEMPLATE_MANAGER: Final = "migrate_legacy_template_manager"
 CONF_LEGACY_HACS_CLEANUP: Final = "legacy_hacs_cleanup"
 CONF_LEGACY_SERVICE_ALIASES: Final = "legacy_service_aliases"
-CONF_NATIVE_GROUP_DISCOVERY: Final = "native_group_discovery"
 
 DEFAULT_OPTIONS: Final = {
     # Startup safety: do not diagnose missing entities until Home Assistant and
@@ -57,15 +56,14 @@ DEFAULT_OPTIONS: Final = {
     CONF_STARTUP_MAX_WAIT_SECONDS: 240,
     CONF_REPAIR_GRACE_SECONDS: 90,
     CONF_REPAIR_CONFIRMATIONS: 3,
-    # Legacy migrations are now opt-in. Existing completed migration data remains
-    # untouched; normal Home Assistant discovery/import features stay enabled.
+    # Legacy migrations are opt-in. Existing completed unified data remains
+    # untouched; current Home Assistant discovery/import features stay available.
     CONF_LEGACY_MIGRATION_ENABLED: False,
     CONF_MIGRATE_ENTITY_MANAGER: True,
     CONF_MIGRATE_MULTIWAY: True,
     CONF_MIGRATE_TEMPLATE_MANAGER: True,
     CONF_LEGACY_HACS_CLEANUP: False,
     CONF_LEGACY_SERVICE_ALIASES: False,
-    CONF_NATIVE_GROUP_DISCOVERY: True,
 }
 
 TUYA_REGION_ENDPOINTS: Final = {
