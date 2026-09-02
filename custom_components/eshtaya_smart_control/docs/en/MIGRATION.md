@@ -1,164 +1,93 @@
-# Automatic Legacy Migration
+# Migration
 
-Eshtaya Smart Control is designed to replace several standalone tools with one unified platform without running two control engines against the same hardware and without requiring you to delete/reinstall the unified integration for normal updates.
+Version 2.4.0 changes legacy Eshtaya migration from an automatic background behavior into an **explicit, configurable operation**.
 
-## What can be migrated?
+This guide distinguishes three different concepts that should not be mixed together:
 
-There are two major migration paths.
+1. migration from retired Eshtaya integrations;
+2. the already-integrated Template Manager data that belongs to Eshtaya Smart Control itself;
+3. discovery/takeover of native Home Assistant Group helpers.
 
-### Existing unified legacy migration
+# Default behavior in 2.4.0
 
-This covers tools such as:
+For a normal installation that already completed its old migrations:
 
 ```text
-eshtaya_entity_manager
-eshtaya_multiway
+Enable legacy Eshtaya migration = Off
+Legacy HACS cleanup = Off
+Legacy service aliases = Off
 ```
 
-and moves Entity/Alexa rules, Multi-Way configuration, and Smart Group data into the unified stores.
+With the master migration switch off, a new migration run does not intentionally:
 
-### Legacy Template Manager
+- scan old Entity Manager / Multi-Way / Template Manager data for takeover;
+- disable an old config entry;
+- copy old storage;
+- remove an old config entry;
+- remove legacy HACS repositories;
+- register retired service-domain aliases.
 
-Starting with 2.3.x, Template Manager is a first-class module inside Eshtaya Smart Control. Version 2.3.1 expands legacy discovery to include:
+Existing **unified** Entity Control, Multi-Way, Smart Groups and Template Manager data loads normally.
 
-- an old config entry when present;
-- an externally owned `sensor.eshtaya_template_manager`;
-- old-domain services;
-- the old custom-component directory;
-- known storage/package files;
-- generated YAML/JSON used by the previous permanent-entity workflow.
+# Configure migration
 
-# Core transaction rule
-
-Migration is not “copy and delete.” The safe order is:
+Open:
 
 ```text
-Detect
-→ Capture
-→ Backup
-→ Quiesce / stop legacy
-→ Import or stage new state
-→ Verify
-→ Final cleanup
+Settings → Devices & services → Eshtaya Smart Control → Configure
 ```
 
-If the migrator cannot prove that required data was recovered, it must not assume success or continue destructive cleanup.
+Migration controls:
 
-# Migration Center states
+| Option | Default | Purpose |
+|---|---:|---|
+| Enable legacy Eshtaya migration | Off | Master switch for new retired-tool migration |
+| Migrate old Entity Manager | On | Included only when master migration is enabled |
+| Migrate old Multi-Way / Smart Groups | On | Included only when master migration is enabled |
+| Migrate old Template Manager | On | Included only when master migration is enabled |
+| Legacy HACS cleanup | Off | Remove verified retired HACS repositories after successful migration |
+| Legacy service aliases | Off | Keep compatibility service names for old automations |
 
-Important states include:
+The component switches are independent. If old Entity Manager is disabled in the migration options, the coordinator does not intentionally copy, unload or remove that old domain while migrating another selected tool.
+
+# Safety exception: an in-progress cutover may finish
+
+Disabling future migration must never strand a transactional migration that had already reached a destructive preparation stage before the 2.4 upgrade.
+
+Therefore, a previously started migration in an in-flight state such as:
 
 ```text
-not_found
 prepared
+legacy_disabled
+validated
+cleanup_partial
 restart_required
-completed
-rolled_back
-error
 ```
 
-## `not_found`
+may be resumed automatically even when the new master switch defaults to Off.
 
-No legacy evidence requiring migration was found in that run.
+This behavior is strictly for completing an already-started safe cutover. It is not a new background scan of retired tools.
 
-Version 2.3.1 does not treat a previous 2.3.0 `not_found` result as permanent proof that no legacy Template Manager exists. It re-evaluates real legacy evidence during startup, allowing a normal update over 2.3.0 to discover generated files missed by the earlier migrator.
+# Old Entity Manager / Multi-Way migration
 
-## `prepared`
+When explicitly enabled, the coordinator:
 
-Legacy state has been captured/backed up and the unified runtime is prepared to take ownership.
+1. detects only the selected old domains;
+2. loads only the selected old storage;
+3. creates a migration backup;
+4. copies data only into an empty/compatible unified target;
+5. disables the selected old config entry before unified runtime ownership;
+6. validates migrated counts;
+7. removes selected old config entries only after validation;
+8. rolls back disabled entries if validation fails.
 
-## `restart_required`
+Unselected legacy domains are outside that transaction.
 
-This is a safety checkpoint, not a failure.
+# Old Template Manager migration
 
-For Template Manager it normally means:
+Template Manager has its own zero-duplicate migration path because it owns permanent `light.*` and `fan.*` entity IDs.
 
-- old mappings were recovered;
-- a rollback backup was created;
-- generated legacy definitions were removed from disk;
-- old Light/Fan entities or the compatibility sensor are still resident in Home Assistant memory;
-- unified replacements are marked deferred and are not created yet.
-
-The purpose is to prevent:
-
-```text
-light.example_2
-fan.example_2
-sensor.eshtaya_template_manager_2
-```
-
-The correct next step is one Home Assistant restart.
-
-## `completed`
-
-Required entities/rules/groups were verified and the unified platform is now the effective owner.
-
-## `rolled_back`
-
-A cutover started but validation failed before final cleanup. The migration attempted to restore the old config/files rather than continuing with an unsafe cleanup.
-
-# Backups
-
-## Entity/Multi-Way migration
-
-Migration Center stores an internal rollback snapshot with enough configuration/entry state to re-enable old components when validation fails.
-
-## Template Manager migration
-
-A physical backup is created under:
-
-```text
-/config/eshtaya_smart_control_backups/template_manager_<timestamp>/
-```
-
-It can include:
-
-- mappings;
-- Entity Registry metadata;
-- config-entry metadata;
-- generated YAML/JSON;
-- known package/storage files;
-- the old custom component when present.
-
-The migration does not automatically delete this backup after success.
-
-# Entity & Alexa migration
-
-The general flow is:
-
-1. Detect legacy storage.
-2. Create backup state.
-3. Copy rules into UnifiedEntityManager when the destination is suitable.
-4. Compare expected/actual counts.
-5. Validate hidden-entity files.
-6. Retire the old implementation after successful verification.
-
-The managed files remain:
-
-```text
-/config/hidden_entities.yaml
-/config/www/hidden_entities.yaml
-```
-
-# Multi-Way and Smart Groups migration
-
-The general flow is:
-
-1. Read legacy config/storage.
-2. Backup.
-3. Prevent old/new runtime overlap.
-4. Start the unified runtime.
-5. Compare expected and actual group counts.
-6. Reconcile hidden-member ownership.
-7. Remove the old config entry after verification.
-
-Compatibility aliases preserve common `eshtaya_multiway.*` services after migration so existing automations have a transition path.
-
-# Template Manager migration in 2.3.1
-
-## Mapping sources
-
-The migrator can read live runtime data and files such as:
+When explicitly enabled, it may recover mappings from:
 
 ```text
 /config/packages/eshtaya_generated_templates.yaml
@@ -168,53 +97,72 @@ The migrator can read live runtime data and files such as:
 /config/eshtaya_template_manager/mappings.json
 ```
 
-When the same permanent entity is found both in files and a live runtime record, the live runtime record wins because it reflects the mapping the old manager is actually using at that moment.
+and/or the old runtime sensor/services/config entry.
 
-## Data captured before cleanup
+It creates a rollback backup before legacy cleanup.
 
-The migration preserves, where available:
+## `restart_required`
 
-- permanent `entity_id`;
-- `source_entity`;
-- Light/Fan type;
-- display name;
-- Entity Registry metadata such as Area, Icon, and Labels.
+If old permanent entities remain resident in Home Assistant memory after their generated definitions are removed, the unified entities remain deferred. No `_2` duplicate is intentionally created.
 
-After the unified entities start, the migration verifies that the expected IDs exist and are owned by `eshtaya_smart_control`.
+The next Home Assistant restart completes the exact-ID takeover after the retired definitions no longer load.
 
-## Legacy installations without a config entry
+A migration already waiting at `restart_required` is considered an in-progress cutover and is allowed to resume in 2.4 even when new legacy migrations are disabled by default.
 
-Some older installations are YAML/custom-component based and cannot be cleanly unloaded at runtime.
+# Legacy HACS cleanup
 
-Version 2.3.1 handles this by backing up/removing known generated definitions and calling `template.reload` when available. If any permanent entity or the old compatibility sensor remains resident in memory, the migration switches to `restart_required` instead of creating duplicates.
+Cleanup is now a separate explicit option and defaults Off.
 
-# HACS cleanup
+Turning on the migration master does not automatically imply that HACS repositories should be removed. Cleanup is scheduled only when:
 
-Removing legacy HACS repositories is a post-verification cleanup step, not the proof that migration succeeded.
+- migration/verification is complete enough for cleanup; and
+- `legacy_hacs_cleanup` is enabled.
 
-If the HACS API is temporarily unavailable, the data cutover can still be valid while HACS cleanup is reported separately.
+# Legacy service aliases
 
-# Should I remove and reinstall Eshtaya Smart Control?
+Compatibility aliases are also independent and default Off.
 
-No. For a normal update:
+Enable them only if existing automations still use retired domains such as:
 
 ```text
-HACS Update
-→ Restart Home Assistant
-→ review Migration Center / Template Manager
+eshtaya_multiway.*
+eshtaya_template_manager.*
 ```
 
-Deleting the unified config entry can remove state the migrator needs to determine what has already been moved.
+New automations should use the unified `eshtaya_smart_control` services.
 
-# Post-migration validation
+# Native Home Assistant Groups are NOT legacy migration
 
-Confirm:
+Discovery of Home Assistant Group helpers and transactional Take Over remain available regardless of the legacy migration master setting.
 
-- no unexpected `_2` entity IDs;
-- old automations still work;
-- Alexa files are synchronized;
-- Multi-Way and Smart Groups are healthy;
-- Template Manager Managed/Missing state is correct;
-- no legacy engine is still actively controlling the same hardware.
+Typical flow:
 
-A full Home Assistant backup remains the strongest disaster-recovery layer before significant upgrades or migrations.
+```text
+Home Assistant Group helper
+→ Eshtaya discovers it
+→ operator chooses Take Over
+→ Eshtaya validates compatibility
+→ exact entity ID / metadata are preserved where supported
+```
+
+This is an operator-requested transformation of current Home Assistant configuration, not an automatic migration from a retired Eshtaya custom integration.
+
+# Recommended configuration after a successful historical migration
+
+For systems where all old Eshtaya tools are already migrated:
+
+```text
+legacy_migration_enabled = false
+legacy_hacs_cleanup = false
+legacy_service_aliases = false
+```
+
+Keep the individual migration component checkboxes at their defaults; they do nothing while the master migration switch is Off.
+
+Native Group discovery/takeover continues to work.
+
+# Diagnostics
+
+System Report includes only non-secret startup/migration settings plus the sanitized historical migration state. Raw backup data and Tuya credentials are excluded.
+
+If a migration is intentionally enabled, take a Home Assistant backup first and keep the Eshtaya migration backup until the cutover is fully verified.
