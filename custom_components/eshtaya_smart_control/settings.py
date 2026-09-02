@@ -44,6 +44,25 @@ _INT_RANGES = {
 }
 _SETTING_KEYS = (*_BOOL_KEYS, *_INT_RANGES.keys())
 
+# Stable public API names. Keep these explicit so frontend/backend contract changes
+# are caught during CI instead of silently hiding a control.
+PUBLIC_SETTING_NAMES = (
+    "startup_wait_home_assistant",
+    "startup_wait_referenced_integrations",
+    "legacy_migration_enabled",
+    "migrate_legacy_entity_manager",
+    "migrate_legacy_multiway",
+    "migrate_legacy_template_manager",
+    "legacy_hacs_cleanup",
+    "legacy_service_aliases",
+    "startup_settle_seconds",
+    "startup_max_wait_seconds",
+    "repair_grace_seconds",
+    "repair_missing_confirmations",
+)
+if set(PUBLIC_SETTING_NAMES) != set(_SETTING_KEYS):
+    raise RuntimeError("Runtime settings public API is out of sync with constants")
+
 
 def _entry(hass: HomeAssistant):
     entry = hass.data.get(DOMAIN, {}).get(DATA_ENTRY)
