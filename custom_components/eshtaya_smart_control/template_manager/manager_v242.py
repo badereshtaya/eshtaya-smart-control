@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.helpers import entity_registry as er
 
 from .editor_v243 import FullTemplateEditorMixin
-from .generated_package_v243 import GeneratedPackageManager
+from .generated_package_v244 import GeneratedPackageManager
 from .manager import TemplateManager as _BaseTemplateManager
 
 _ACTIVE_LOCK_PHASES = {"prepared", "restart_required"}
@@ -44,10 +44,16 @@ class TemplateManager(FullTemplateEditorMixin, _BaseTemplateManager):
 
         The YAML file remains the runtime owner. ``deferred`` prevents the native
         Eshtaya light/fan platforms from creating a duplicate entity with the same ID.
+
+        A parser/read failure must never erase the last known external mirror. The
+        scan diagnostics remain visible in the snapshot so the user can fix the file
+        while the previous managed rows stay available for recovery.
         """
         if self._migration_locked():
             return
         generated = await self.generated_packages.async_scan()
+        diagnostics = self.generated_packages.scan_diagnostics
+        scan_has_errors = bool(diagnostics.get("errors"))
         current = self.store.templates()
         current_by_id = {str(item.get("entity_id")): item for item in current}
         generated_by_id = {str(item["entity_id"]): item for item in generated}
@@ -56,9 +62,16 @@ class TemplateManager(FullTemplateEditorMixin, _BaseTemplateManager):
         for record in current:
             entity_id = str(record.get("entity_id") or "")
             if record.get("external_managed"):
-                if entity_id not in generated_by_id:
+                if entity_id in generated_by_id:
+                    # Fresh file data wins for external records.
                     continue
-                # Fresh file data wins for external records.
+                if scan_has_errors:
+                    # Do not destructively purge a previously known mapping because a
+                    # generated YAML file is temporarily unreadable or malformed.
+                    result.append({**record, "deferred": True, "scan_stale": True})
+                    continue
+                # No scan errors and the definition is genuinely gone from the
+                # managed package files, so remove only the stale mirror record.
                 continue
             result.append(record)
 
@@ -67,16 +80,12 @@ class TemplateManager(FullTemplateEditorMixin, _BaseTemplateManager):
             if existing and not existing.get("external_managed"):
                 # Never replace a native Eshtaya-managed entity with a file mirror.
                 continue
-            result.append({**record, "deferred": True})
+            clean = {**record, "deferred": True}
+            clean.pop("scan_stale", None)
+            result.append(clean)
 
-        before = {
-            str(item.get("entity_id")): item
-            for item in current
-        }
-        after = {
-            str(item.get("entity_id")): item
-            for item in result
-        }
+        before = {str(item.get("entity_id")): item for item in current}
+        after = {str(item.get("entity_id")): item for item in result}
         if before != after:
             await self.store.async_replace_all(result)
         self._generated_count = sum(1 for item in result if item.get("external_managed"))
@@ -90,6 +99,8 @@ class TemplateManager(FullTemplateEditorMixin, _BaseTemplateManager):
         snapshot = await super().async_scan()
         snapshot["mutation_locked"] = self._migration_locked()
         snapshot["generated_managed_count"] = self._generated_count
+        snapshot["generated_scan"] = self.generated_packages.scan_diagnostics
+        snapshot["defined_count"] = len(self.store.templates())
         migration = deepcopy(snapshot.get("migration") or {})
         if not self._migration_locked() and migration.get("legacy_found") and not migration.get("completed"):
             # A rolled-back/failed/stale migration must never leave the normal manager
