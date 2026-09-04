@@ -40,7 +40,7 @@ jobs:
           ]:
               json.loads(path.read_text(encoding="utf-8"))
           PY
-      - name: Verify v2.4.3 startup, migration, full-editor and UI safety invariants
+      - name: Verify v2.4.4 startup, migration, template recovery and documentation invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -53,7 +53,7 @@ jobs:
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           if "tuya" not in manifest.get("after_dependencies", []):
               raise SystemExit("manifest must keep official Tuya as an after_dependency")
-          if manifest.get("version") != "2.4.3":
+          if manifest.get("version") != "2.4.4":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
           if manifest.get("documentation") != "https://github.com/badereshtaya/eshtaya-smart-control":
               raise SystemExit("manifest documentation URL must use the renamed repository")
@@ -89,12 +89,17 @@ jobs:
                   raise SystemExit(f"startup safety invariant missing: {required_text}")
 
           panel = (root / "panel.py").read_text(encoding="utf-8")
-          if "smart-control-panel-v243.js" not in panel:
-              raise SystemExit("v2.4.3 frontend entrypoint is not loaded by panel.py")
+          if "smart-control-panel-v244.js" not in panel:
+              raise SystemExit("v2.4.4 frontend entrypoint is not loaded by panel.py")
 
-          frontend_entry = (root / "frontend" / "smart-control-panel-v243.js").read_text(encoding="utf-8")
-          if "template-manager-editor-v243.js" not in frontend_entry:
-              raise SystemExit("v2.4.3 Template Manager editor extension is not loaded")
+          frontend_entry = (root / "frontend" / "smart-control-panel-v244.js").read_text(encoding="utf-8")
+          for required_text in (
+              "smart-control-panel-v243.js",
+              "regression-recovery-v244.js",
+              "documentation-center-v244.js",
+          ):
+              if required_text not in frontend_entry:
+                  raise SystemExit(f"v2.4.4 frontend entry invariant missing: {required_text}")
 
           editor_ui = (root / "frontend" / "template-manager-editor-v243.js").read_text(encoding="utf-8")
           for required_text in (
@@ -107,7 +112,33 @@ jobs:
               "mutation_locked",
           ):
               if required_text not in editor_ui:
-                  raise SystemExit(f"v2.4.3 editor UI invariant missing: {required_text}")
+                  raise SystemExit(f"full editor UI invariant missing: {required_text}")
+
+          recovery = (root / "frontend" / "regression-recovery-v244.js").read_text(encoding="utf-8")
+          for required_text in (
+              "ShadowRoot.prototype.insertAdjacentHTML",
+              "A renderer problem must never block the backend scan again",
+              "generated_scan",
+              "defined_count",
+              "scan failed",
+              "template.view",
+          ):
+              if required_text not in recovery:
+                  raise SystemExit(f"v2.4.4 Template Manager recovery invariant missing: {required_text}")
+
+          docs_ui = (root / "frontend" / "documentation-center-v244.js").read_text(encoding="utf-8")
+          for required_text in (
+              "documentation/get",
+              "GETTING_STARTED",
+              "ACCESS_CONTROL",
+              "TEMPLATE_MANAGER",
+              "Documentation backend returned empty content",
+              "_docError",
+              "_docLoading",
+              "Retry",
+          ):
+              if required_text not in docs_ui:
+                  raise SystemExit(f"v2.4.4 documentation UI invariant missing: {required_text}")
 
           hotfix = (root / "frontend" / "smart-control-panel-v241-hotfix.js").read_text(encoding="utf-8")
           for required_text in (
@@ -141,21 +172,34 @@ jobs:
               "previous_text",
           ):
               if required_text not in full_generated:
-                  raise SystemExit(f"v2.4.3 generated-package editor invariant missing: {required_text}")
+                  raise SystemExit(f"generated-package editor invariant missing: {required_text}")
+
+          diagnostic_generated = (root / "template_manager" / "generated_package_v244.py").read_text(encoding="utf-8")
+          for required_text in (
+              "scan_diagnostics",
+              "records",
+              "errors",
+              "yaml.safe_load",
+              "relative_to",
+          ):
+              if required_text not in diagnostic_generated:
+                  raise SystemExit(f"v2.4.4 generated scanner invariant missing: {required_text}")
 
           manager = (root / "template_manager" / "manager_v242.py").read_text(encoding="utf-8")
           for required_text in (
               "FullTemplateEditorMixin",
-              "GeneratedPackageManager",
+              "generated_package_v244",
+              "scan_has_errors",
+              "scan_stale",
+              "generated_scan",
+              "defined_count",
               "external_managed",
-              "generated_managed_count",
               "deferred",
               "prepared",
               "restart_required",
-              "stale_state",
           ):
               if required_text not in manager:
-                  raise SystemExit(f"Template Manager activation invariant missing: {required_text}")
+                  raise SystemExit(f"Template Manager activation/recovery invariant missing: {required_text}")
 
           editor = (root / "template_manager" / "editor_v243.py").read_text(encoding="utf-8")
           for required_text in (
@@ -167,7 +211,7 @@ jobs:
               "SIGNAL_TEMPLATE_CHANGED",
           ):
               if required_text not in editor:
-                  raise SystemExit(f"v2.4.3 editor backend invariant missing: {required_text}")
+                  raise SystemExit(f"editor backend invariant missing: {required_text}")
 
           template_ws = (root / "template_manager" / "websocket.py").read_text(encoding="utf-8")
           for required_text in (
@@ -178,7 +222,7 @@ jobs:
               "template.manage",
           ):
               if required_text not in template_ws:
-                  raise SystemExit(f"v2.4.3 Template Manager WebSocket invariant missing: {required_text}")
+                  raise SystemExit(f"Template Manager WebSocket invariant missing: {required_text}")
 
           settings = (root / "settings.py").read_text(encoding="utf-8")
           for required_text in (
@@ -262,6 +306,67 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           find custom_components/eshtaya_smart_control/frontend -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Smoke-test v2.4.4 ShadowRoot and Documentation regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import assert from "node:assert/strict";
+
+          class FakeShadowRoot {
+            constructor() { this.children = []; this.firstChild = null; }
+            appendChild(value) { this.children.push(value); return value; }
+            insertBefore(value) { this.children.unshift(value); return value; }
+          }
+          globalThis.ShadowRoot = FakeShadowRoot;
+          globalThis.DOMException = class DOMException extends Error {};
+          globalThis.document = {
+            createElement(name) {
+              assert.equal(name, "template");
+              return {
+                innerHTML: "",
+                content: {cloneNode: () => ({kind: "fragment"})},
+              };
+            },
+          };
+
+          class FakePanel {
+            constructor() {
+              this._lang = "en";
+              this._docSearch = "";
+              this._hass = {callWS: async () => ({content: "# Working\n\nDocumentation body"})};
+            }
+            _icon() { return ""; }
+            _esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
+            _render() {}
+            _click() {}
+            _css() { return ""; }
+          }
+          globalThis.customElements = {
+            whenDefined: () => Promise.resolve(),
+            get: name => name === "eshtaya-smart-control-panel" ? FakePanel : undefined,
+          };
+
+          await import("./custom_components/eshtaya_smart_control/frontend/regression-recovery-v244.js");
+          const root = new ShadowRoot();
+          assert.equal(typeof root.insertAdjacentHTML, "function");
+          root.insertAdjacentHTML("beforeend", "<div>ok</div>");
+          assert.equal(root.children.length, 1);
+
+          await import("./custom_components/eshtaya_smart_control/frontend/documentation-center-v244.js");
+          await new Promise(resolve => setTimeout(resolve, 0));
+          const panel = new FakePanel();
+          assert.equal(typeof panel._openDoc, "function");
+          await panel._openDoc("GETTING_STARTED");
+          assert.match(panel._docText, /Documentation body/);
+          assert.equal(panel._docError, "");
+          assert.match(panel._docPage(), /<h1>Working<\/h1>/);
+
+          panel._hass = {callWS: async () => { throw new Error("backend unavailable"); }};
+          await panel._openDoc("DASHBOARD");
+          assert.match(panel._docError, /backend unavailable/);
+          assert.match(panel._docPage(), /Documentation could not be loaded/);
+          JS
   package:
     needs: [hacs, hassfest, syntax]
     runs-on: ubuntu-latest
