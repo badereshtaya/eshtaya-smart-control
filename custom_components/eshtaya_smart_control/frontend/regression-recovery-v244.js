@@ -7,7 +7,8 @@
  *
  * This layer restores safe ShadowRoot insertion, makes Template Manager data
  * loading independent from enhancement rendering, suppresses no-op language
- * renders, and preserves the Template Manager view across shell reconnects.
+ * renders, exposes generated-YAML scan errors, and preserves the Template Manager
+ * view across shell reconnects.
  */
 
 const ESC_V244_DOMAIN = "eshtaya_smart_control";
@@ -50,6 +51,7 @@ customElements.whenDefined("eshtaya-template-manager-panel").then(() =>
     if (!Panel || Panel.prototype.__eshtayaV244RecoveryApplied) return;
     const p = Panel.prototype;
     p.__eshtayaV244RecoveryApplied = true;
+    const enhancedRender = p._render;
 
     Object.defineProperty(p, "language", {
       configurable: true,
@@ -67,6 +69,45 @@ customElements.whenDefined("eshtaya-template-manager-panel").then(() =>
         }
       },
     });
+
+    p._render = function () {
+      const result = enhancedRender.call(this);
+      if (!this.shadowRoot) return result;
+
+      // "Managed" now means all definitions known to the manager, including a
+      // mapping whose source is currently Missing. Missing remains separately
+      // visible in its own counter/tab.
+      const managedStat = this.shadowRoot.querySelector(".stats article:first-child b");
+      if (managedStat && Number.isFinite(Number(this._data?.defined_count))) {
+        managedStat.textContent = String(Number(this._data.defined_count));
+      }
+
+      const diagnostics = this._data?.generated_scan;
+      const failures = Array.isArray(diagnostics?.files)
+        ? diagnostics.files.filter(file => file?.exists && file?.ok === false)
+        : [];
+      if (failures.length) {
+        const wrap = this.shadowRoot.querySelector(".wrap");
+        if (wrap && !wrap.querySelector(".esc-v244-scan-error")) {
+          const banner = document.createElement("div");
+          banner.className = "error esc-v244-scan-error";
+          banner.style.cssText = "padding:12px 14px;display:grid;gap:5px";
+          const title = document.createElement("b");
+          title.textContent = this.t(
+            "One or more generated Template YAML files could not be parsed. Existing mappings were preserved.",
+            "تعذر قراءة ملف أو أكثر من ملفات Template YAML. تم الحفاظ على الربط السابق ولم يتم حذفه.",
+          );
+          banner.appendChild(title);
+          for (const failure of failures) {
+            const line = document.createElement("code");
+            line.textContent = `${failure.file}: ${failure.error || "scan failed"}`;
+            banner.appendChild(line);
+          }
+          wrap.prepend(banner);
+        }
+      }
+      return result;
+    };
 
     p._load = async function (scan = false) {
       if (!this._hass || this._busy) return;
