@@ -40,7 +40,7 @@ jobs:
           ]:
               json.loads(path.read_text(encoding="utf-8"))
           PY
-      - name: Verify v2.4.4 startup, migration, template recovery and documentation invariants
+      - name: Verify v2.4.5 startup, YAML source-of-truth and regression invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -53,7 +53,7 @@ jobs:
           manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
           if "tuya" not in manifest.get("after_dependencies", []):
               raise SystemExit("manifest must keep official Tuya as an after_dependency")
-          if manifest.get("version") != "2.4.4":
+          if manifest.get("version") != "2.4.5":
               raise SystemExit(f"unexpected release version: {manifest.get('version')}")
           if manifest.get("documentation") != "https://github.com/badereshtaya/eshtaya-smart-control":
               raise SystemExit("manifest documentation URL must use the renamed repository")
@@ -185,10 +185,71 @@ jobs:
               if required_text not in diagnostic_generated:
                   raise SystemExit(f"v2.4.4 generated scanner invariant missing: {required_text}")
 
+          yaml_source = (root / "template_manager" / "generated_package_v245.py").read_text(encoding="utf-8")
+          for required_text in (
+              "packages/eshtaya_generated_lights.yaml",
+              "default_entity_id",
+              "unique_id",
+              "switch.turn_on",
+              "switch.turn_off",
+              "async_create_records",
+              "async_restore_create",
+              ".esc-create-tmp",
+          ):
+              if required_text not in yaml_source:
+                  raise SystemExit(f"v2.4.5 YAML source-of-truth invariant missing: {required_text}")
+
+          # Execute the real pure node/layout helpers without importing Home Assistant.
+          import ast
+          from typing import Any
+          source_tree = ast.parse(yaml_source)
+          class_node = next(
+              node for node in source_tree.body
+              if isinstance(node, ast.ClassDef) and node.name == "GeneratedPackageManager"
+          )
+          helper_names = {"_template_node", "_append_node"}
+          helpers = [
+              node for node in class_node.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in helper_names
+          ]
+          dummy = ast.ClassDef(
+              name="YamlHelpers",
+              bases=[],
+              keywords=[],
+              body=helpers,
+              decorator_list=[],
+          )
+          namespace = {"Any": Any}
+          exec(compile(ast.fix_missing_locations(ast.Module(body=[dummy], type_ignores=[])), "<yaml-helpers>", "exec"), namespace)
+          Helpers = namespace["YamlHelpers"]
+          sample = {
+              "entity_id": "light.coffe_logo",
+              "source_entity": "switch.coffe_logo",
+              "type": "light",
+              "name": "Coffee Logo",
+              "unique_id": "esc_template::light.coffe_logo",
+          }
+          node = Helpers._template_node(sample)
+          if node.get("default_entity_id") != "light.coffe_logo":
+              raise SystemExit("v2.4.5 node did not preserve exact entity_id")
+          if node.get("turn_on", {}).get("action") != "switch.turn_on":
+              raise SystemExit("v2.4.5 node has invalid turn_on action")
+          if node.get("turn_off", {}).get("target", {}).get("entity_id") != "switch.coffe_logo":
+              raise SystemExit("v2.4.5 node has invalid turn_off target")
+          package = Helpers._append_node({}, template_type="light", node=node)
+          items = package.get("template", [])
+          if not items or items[0].get("light", [])[0].get("default_entity_id") != "light.coffe_logo":
+              raise SystemExit("v2.4.5 generated YAML layout is invalid")
+
           manager = (root / "template_manager" / "manager_v242.py").read_text(encoding="utf-8")
           for required_text in (
               "FullTemplateEditorMixin",
-              "generated_package_v244",
+              "generated_package_v245",
+              "async_create_records",
+              "async_restore_create",
+              "_async_materialize_native_records",
+              "_async_wait_template_owner",
+              "yaml_source_of_truth",
               "scan_has_errors",
               "scan_stale",
               "generated_scan",
@@ -246,6 +307,10 @@ jobs:
                   raise SystemExit(f"activation invariant missing: {required_text}")
           if "add_update_listener(_entry_updated)" in root_init:
               raise SystemExit("deprecated options reload listener must not return")
+          template_start = root_init.find("await template_manager.async_start()")
+          platform_forward = root_init.find("async_setup_multiway_entry(hass, entry)")
+          if template_start < 0 or platform_forward < 0 or template_start > platform_forward:
+              raise SystemExit("Template Manager YAML reconciliation must run before light/fan platform forwarding")
 
           runtime_ui = (root / "frontend" / "runtime-settings-panel.js").read_text(encoding="utf-8")
           for required_text in (
