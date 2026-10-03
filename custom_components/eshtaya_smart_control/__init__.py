@@ -221,11 +221,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data[DATA_ENTITY_MANAGER] = entity_manager
         data[DATA_TUYA_MANAGER] = TuyaManager(hass, entry)
 
+        # Reconcile/adopt generated Template Manager YAML before forwarding
+        # light/fan platforms. This lets v2.4.5 convert older Eshtaya-native
+        # mappings to exact-ID Home Assistant template entities without _2 duplicates.
+        await template_manager.async_start()
+
         _activate_v21_multiway_runtime()
         if not await async_setup_multiway_entry(hass, entry):
             raise RuntimeError("Multi-Way module could not be initialized")
-
-        await template_manager.async_start()
 
         if template_migration is not None and template_migration_active and not template_restart_required:
             template_migration_state = await template_migration.async_finalize()
