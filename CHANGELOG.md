@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.4.5 — Template Manager YAML source of truth
+
+- Fixed new Template Manager conversions being stored only as Eshtaya-native records instead of being persisted into the generated Home Assistant YAML package.
+- New Light/Fan conversions now write transactionally to the existing managed generated package, preferring `/config/packages/eshtaya_generated_lights.yaml`, then run `template.reload`, verify exact Entity Registry ownership by the Home Assistant `template` integration, and adopt the result as `YAML MANAGED`.
+- Added automatic one-time conversion of existing Eshtaya-native Template Manager records created by 2.3/2.4 (for example a recently created `light.coffe_logo`) into generated YAML during startup.
+- Reordered startup so generated-YAML reconciliation runs before the Eshtaya light/fan platforms are forwarded, preventing `_2` duplicates during native-to-YAML cutover.
+- Generated YAML is now authoritative when the same Entity ID exists in both storage and the package file, eliminating split-brain ownership.
+- Added backup + atomic write + rollback for YAML creation. A failed `template.reload` or exact-ID verification restores the previous file and leaves the native mapping available instead of leaving a half-created entity.
+- Preserves user-facing Entity Registry metadata (name, icon, area and labels) when an older native record is successfully converted to a YAML-backed template.
+- New generated definitions use current Home Assistant Template syntax with `default_entity_id`, `unique_id`, state/availability templates and `switch.turn_on` / `switch.turn_off` actions.
+- Added a `yaml_source_of_truth` diagnostic block to Template Manager snapshots for conversion count/error visibility.
+- Added CI gates for the v2.4.5 YAML node structure, source-of-truth manager behavior and startup ordering.
+- Bumped Eshtaya Smart Control to `2.4.5`.
+
 ## 2.4.4 — Template Manager regression recovery & Documentation Center hardening
 
 - Fixed the v2.4.3 Template Manager frontend regression where the full-editor extension called `insertAdjacentHTML()` on a `ShadowRoot`; browsers can throw before the initial `template/scan` WebSocket call, leaving the already-rendered counters at zero.
